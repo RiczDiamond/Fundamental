@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Voorkom herschrijven als het om een bestaand fysiek bestand of directory gaat
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Forceer correcte encoding via index.php
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
