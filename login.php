@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'bootstrap.php';
+// require_once __DIR__ . '/resources/php/classes/class_session.php';
+// require_once __DIR__ . '/resources/php/classes/class_auth.php';
+// require_once __DIR__ . '/resources/php/classes/class_rate_limiter.php';
 
 // Initialisatie
-$cookie = new cookie($pdo, COOKIE_ENCRYPTION_KEY);
-$session = new Session($pdo, $cookie);
-$auth = new Auth($pdo);
-$rateLimiter = new RateLimiter($pdo);
+$cookie = new cookie($link, COOKIE_ENCRYPTION_KEY);
+$session = new \Session($link, $cookie);
+$auth = new \Auth($link);
+$rateLimiter = new \RateLimiter($link);
 
 // Redirect als al ingelogd
 if ($auth->check() || $session->isAuthenticated()) {

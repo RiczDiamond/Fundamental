@@ -9,10 +9,6 @@ if (!defined('APP_ROOT')) {
 require_once APP_ROOT . 'resources/php/config/config.php';
 require_once APP_ROOT . 'resources/php/helpers/database.php';
 
-if (!isset($pdo) && isset($link) && $link instanceof PDO) {
-    $pdo = $link;
-}
-
 foreach (glob(APP_ROOT . 'resources/php/helpers/*.php') as $helperFile) {
     if (basename($helperFile) === 'database.php') {
         continue;
