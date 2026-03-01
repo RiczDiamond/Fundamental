@@ -14,21 +14,26 @@ class cookie {
         'expires' => 0,           // 0 = session cookie
         'path' => '/',
         'domain' => '',
-        'secure' => true,         // Alleen HTTPS
+        'secure' => false,
         'httponly' => true,       // Niet toegankelijk via JavaScript
         'samesite' => 'Strict'    // CSRF bescherming
     ];
 
     public function __construct($link, $encryption_key = null) {
         $this->link = $link;
+        $this->defaults['secure'] = $this->isHttps();
         
-        // Genereer of gebruik provided encryption key
-        if ($encryption_key) {
-            $this->encryption_key = $encryption_key;
-        } else {
-            // Haal uit config of environment
-            $this->encryption_key = $this->getEncryptionKey();
+        $rawKey = $encryption_key;
+
+        if ($rawKey === null && defined('COOKIE_ENCRYPTION_KEY')) {
+            $rawKey = COOKIE_ENCRYPTION_KEY;
         }
+
+        if ($rawKey === null) {
+            $rawKey = $this->getEncryptionKey();
+        }
+
+        $this->encryption_key = $this->normalizeEncryptionKey($rawKey);
     }
 
     /**
@@ -184,7 +189,7 @@ class cookie {
                     'expires' => time() - 3600,
                     'path' => '/',
                     'domain' => '',
-                    'secure' => true,
+                    'secure' => $this->isHttps(),
                     'httponly' => true,
                     'samesite' => 'Strict'
                 ]);
@@ -313,7 +318,7 @@ class cookie {
                 'expires' => $newExpires,
                 'path' => '/',
                 'domain' => '',
-                'secure' => true,
+                'secure' => $this->isHttps(),
                 'httponly' => true,
                 'samesite' => 'Strict'
             ]);
@@ -416,7 +421,16 @@ class cookie {
      * CSRF token genereren en opslaan in cookie
      */
     public function csrfToken($name = 'csrf_token') {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         $token = bin2hex(random_bytes(32));
+        if (!isset($_SESSION['_csrf_tokens']) || !is_array($_SESSION['_csrf_tokens'])) {
+            $_SESSION['_csrf_tokens'] = [];
+        }
+
+        $_SESSION['_csrf_tokens'][$name] = $token;
         $this->set($name, $token, ['expires' => 3600]); // 1 uur geldig
         return $token;
     }
@@ -425,8 +439,18 @@ class cookie {
      * CSRF token valideren
      */
     public function csrfValidate($token, $name = 'csrf_token') {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $sessionToken = $_SESSION['_csrf_tokens'][$name] ?? null;
+
+        if (is_string($sessionToken) && $sessionToken !== '' && is_string($token) && $token !== '') {
+            return hash_equals($sessionToken, $token);
+        }
+
         $storedToken = $this->get($name);
-        if (!$storedToken) {
+        if (!$storedToken || !is_string($token) || $token === '') {
             return false;
         }
         
@@ -559,16 +583,25 @@ class cookie {
     }
 
     private function getEncryptionKey() {
-        // Haal uit environment of config file
         $key = getenv('COOKIE_ENCRYPTION_KEY');
-        
-        if (!$key) {
-            // Genereer nieuwe key (opslaan in .env file!)
-            $key = base64_encode(random_bytes(32));
-            error_log("WARNING: Nieuwe encryptie key gegenereerd. Sla deze op in je .env file: " . $key);
+
+        if (!empty($key)) {
+            return $key;
         }
-        
-        return base64_decode($key);
+
+        if (defined('AUTHENTICATION') && isset(AUTHENTICATION['PEPPER']['VALUE'])) {
+            return (string) AUTHENTICATION['PEPPER']['VALUE'];
+        }
+
+        return 'fundamental-cookie-fallback-key';
+    }
+
+    private function normalizeEncryptionKey($key) {
+        if (!is_string($key)) {
+            $key = (string) $key;
+        }
+
+        return hash('sha256', $key, true);
     }
 
     /**
@@ -586,5 +619,11 @@ class cookie {
             error_log("Cookie cleanup error: " . $e->getMessage());
             return 0;
         }
+    }
+
+    private function isHttps() {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     }
 }

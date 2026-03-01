@@ -104,9 +104,13 @@
     header('Cache-Control: ' . SERVER_SETTINGS['CACHE_CONTROL']);
     header('Content-Type: ' . SERVER_SETTINGS['CONTENT_TYPE'] . '; charset=' . SERVER_SETTINGS['CHARSET']);
 
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
     ini_set('memory_limit', SERVER_SETTINGS['MEMORY_LIMIT']);
     ini_set('session.gc_maxlifetime', 3600); // 1 uur
-    ini_set('session.cookie_secure', 1); // Alleen via HTTPS
+    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
     ini_set('session.cookie_httponly', 1); // Geen JS toegang
     ini_set('session.use_strict_mode', 1); // Strikte sessies
 

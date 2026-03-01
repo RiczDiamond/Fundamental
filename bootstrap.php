@@ -1,36 +1,47 @@
 <?php
 
-    declare(strict_types=1);
+declare(strict_types=1);
 
-    // Alles automatisch inladen via autoloading
-    spl_autoload_register(function ($class) {
-        $file = __DIR__ . '/classes/class_' . strtolower($class) . '.php';
-        if (file_exists($file)) {
-            require_once $file;
-        } else {
-            error_log("Autoloading failed: Class file for '$class' not found at '$file'");
-        }
-    });
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', __DIR__ . DIRECTORY_SEPARATOR);
+}
 
-    // ook de config automatisch inladen
-    require_once __DIR__ . '/resources/php/config/config.php';
+require_once APP_ROOT . 'resources/php/config/config.php';
+require_once APP_ROOT . 'resources/php/helpers/database.php';
 
-    // Load URL helper (defines $url) and other helpers as needed
-    if (file_exists(__DIR__ . '/resources/php/helpers/url.php')) {
-        require_once __DIR__ . '/resources/php/helpers/url.php';
+if (!isset($pdo) && isset($link) && $link instanceof PDO) {
+    $pdo = $link;
+}
+
+foreach (glob(APP_ROOT . 'resources/php/helpers/*.php') as $helperFile) {
+    if (basename($helperFile) === 'database.php') {
+        continue;
     }
 
-    // Load template helpers
-    if (file_exists(__DIR__ . '/resources/php/helpers/templates.php')) {
-        require_once __DIR__ . '/resources/php/helpers/templates.php';
+    require_once $helperFile;
+}
+
+require_once APP_ROOT . 'resources/php/classes/class_cookie.php';
+require_once APP_ROOT . 'resources/php/classes/class_session.php';
+require_once APP_ROOT . 'resources/php/classes/class_auth.php';
+require_once APP_ROOT . 'resources/php/classes/class_rate_limiter.php';
+
+foreach (glob(APP_ROOT . 'resources/php/classes/class_*.php') as $classFile) {
+    require_once $classFile;
+}
+
+if (!defined('SITE_NAME')) {
+    $projectName = PROJECT['NAME'] ?? 'Fundamental';
+    define('SITE_NAME', $projectName);
+}
+
+if (!defined('COOKIE_ENCRYPTION_KEY')) {
+    $envCookieKey = getenv('COOKIE_ENCRYPTION_KEY');
+
+    if (!empty($envCookieKey)) {
+        define('COOKIE_ENCRYPTION_KEY', $envCookieKey);
+    } else {
+        $fallbackSeed = AUTHENTICATION['PEPPER']['VALUE'] ?? PROJECT['NAME'] ?? 'fundamental-cookie-key';
+        define('COOKIE_ENCRYPTION_KEY', hash('sha256', (string) $fallbackSeed));
     }
-    
-    // Load database helper to establish $link (PDO) for templates and helpers
-    $dbHelper = __DIR__ . '/resources/php/helpers/database.php';
-    if (file_exists($dbHelper)) {
-        require_once $dbHelper;
-        if (!isset($link) && isset($GLOBALS['link']) && $GLOBALS['link'] instanceof PDO) {
-            $link = $GLOBALS['link'];
-        }
-    }
-    
+}

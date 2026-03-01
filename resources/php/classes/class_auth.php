@@ -22,12 +22,15 @@ class Auth {
         try {
             // Zoek gebruiker op email of username
             $sql = "SELECT * FROM {$this->table} 
-                    WHERE (email = :search OR username = :search) 
+                    WHERE (email = :search_email OR username = :search_username) 
                     AND trash = 0 
                     LIMIT 1";
             
             $stmt = $this->link->prepare($sql);
-            $stmt->execute([':search' => $search]);
+                $stmt->execute([
+                ':search_email' => $search,
+                ':search_username' => $search
+                ]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
@@ -68,7 +71,7 @@ class Auth {
                 setcookie($this->cookie_name, $token, [
                     'expires' => $expires,
                     'path' => '/',
-                    'secure' => true,
+                    'secure' => $this->isHttps(),
                     'httponly' => true,
                     'samesite' => 'Strict'
                 ]);
@@ -106,7 +109,7 @@ class Auth {
             setcookie($this->cookie_name, '', [
                 'expires' => time() - 3600,
                 'path' => '/',
-                'secure' => true,
+                'secure' => $this->isHttps(),
                 'httponly' => true,
                 'samesite' => 'Strict'
             ]);
@@ -534,6 +537,12 @@ class Auth {
 
     private function generateToken() {
         return bin2hex(random_bytes(32));
+    }
+
+    private function isHttps() {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     }
 
     private function logFailedAttempt($userId) {

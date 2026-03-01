@@ -500,7 +500,7 @@ class Session {
             $this->cookie->set($this->session_name, $sessionId, [
                 'expires' => $this->timeout,
                 'httponly' => true,
-                'secure' => true,
+                'secure' => $this->isHttps(),
                 'samesite' => 'Strict'
             ]);
         } else {
@@ -508,7 +508,7 @@ class Session {
             setcookie($this->session_name, $sessionId, [
                 'expires' => $expires,
                 'path' => '/',
-                'secure' => true,
+                'secure' => $this->isHttps(),
                 'httponly' => true,
                 'samesite' => 'Strict'
             ]);
@@ -525,11 +525,17 @@ class Session {
             setcookie($this->session_name, '', [
                 'expires' => time() - 3600,
                 'path' => '/',
-                'secure' => true,
+                'secure' => $this->isHttps(),
                 'httponly' => true,
                 'samesite' => 'Strict'
             ]);
         }
+    }
+
+    private function isHttps() {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     }
 
     /**
