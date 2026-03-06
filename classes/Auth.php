@@ -23,6 +23,11 @@
                 return false;
             }
 
+            $stmt = $this->link->prepare("UPDATE users SET last_login = NOW(), last_ip = ? WHERE id = ?");
+            $stmt->execute([$_SERVER['REMOTE_ADDR'] ?? null, $user['id']]);
+            $user['last_login'] = date('Y-m-d H:i:s');
+            $user['last_ip'] = $_SERVER['REMOTE_ADDR'] ?? null;
+
             $session->regenerate();
             $session->auth($user['id']);
             $account->set($user);
@@ -60,80 +65,129 @@
 
 		public function logout() {
 
-			global $account;
-            global $session;
-            global $cookie;
+            global $account, $session, $cookie;
 
-            if (isset($_COOKIE['remember_me'])) {
-                setcookie('remember_me', '', time() - 3600, "/", "", false, true);
-
-                // determine current user id from Session object or superglobal
-                $uid = null;
-                if (is_object($session) && method_exists($session, 'get')) {
-                    $uid = $session->get('user_id');
-                } elseif (is_array($session) && isset($session['user_id'])) {
-                    $uid = $session['user_id'];
-                } elseif (isset($_SESSION['user_id'])) {
-                    $uid = $_SESSION['user_id'];
+            // Remove remember-me token from DB and clear the cookie
+            if (!empty($_COOKIE['remember_me'])) {
+                $parts = explode(':', $_COOKIE['remember_me'], 2);
+                if (count($parts) === 2) {
+                    $selector = $parts[0];
+                    $stmt = $this->link->prepare("DELETE FROM remember_tokens WHERE selector = ?");
+                    $stmt->execute([$selector]);
                 }
-
-                if (!empty($uid)) {
-                    $stmt = $this->link->prepare("UPDATE users SET remember_token = NULL WHERE id = ?");
-                    $stmt->execute([$uid]);
+                if (is_object($cookie) && method_exists($cookie, 'delete')) {
+                    $cookie->delete('remember_me');
+                } else {
+                    setcookie('remember_me', '', time() - 3600, '/', '', isset($_SERVER['HTTPS']), true);
                 }
             }
-
 
             if ($account) {
                 $account->set([]);
             }
 
-            // clear session user_id via Session API if available
-            if (is_object($session) && method_exists($session, 'delete')) {
-                $session->delete('user_id');
-            } elseif (is_object($session) && method_exists($session, 'set')) {
-                $session->set('user_id', null);
-            } elseif (is_array($session) && isset($session['user_id'])) {
-                unset($session['user_id']);
-            } elseif (isset($_SESSION['user_id'])) {
-                unset($_SESSION['user_id']);
+            if (is_object($session) && method_exists($session, 'destroy')) {
+                $session->destroy();
+            } else {
+                $_SESSION = [];
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_destroy();
+                }
             }
 
-            $_SESSION = [];
-            if (session_id() != "" || isset($_COOKIE[session_name()])) {
-                setcookie(session_name(), '', time() - 3600, "/");
-            }
-            session_destroy();
-
-		}
+	}
 
 		public function register($data) {
 
-			// Registration logic here
+			if (empty($data['username']) || empty($data['email']) || empty($data['password'])) {
+				return false;
+			}
+
+			// Duplicate check
+			$stmt = $this->link->prepare("SELECT 1 FROM {$this->table} WHERE username = ? OR email = ? LIMIT 1");
+			$stmt->execute([$data['username'], $data['email']]);
+			if ($stmt->fetchColumn()) {
+				return false;
+			}
+
+			$allowed = [
+				'username', 'email', 'first_name', 'last_name', 'display_name',
+                'gender', 'birth_date'
+			];
+
+			$cols   = ['password', 'status', 'role', 'created_at'];
+			$values = [password_hash($data['password'], PASSWORD_DEFAULT), 'active', 'user', date('Y-m-d H:i:s')];
+
+			foreach ($allowed as $col) {
+				if (!empty($data[$col])) {
+					$cols[]   = $col;
+					$values[] = $data[$col];
+				}
+			}
+
+			$placeholders = implode(', ', array_fill(0, count($cols), '?'));
+			$sql = "INSERT INTO {$this->table} (" . implode(', ', $cols) . ") VALUES ({$placeholders})";
+			$stmt = $this->link->prepare($sql);
+			$result = $stmt->execute($values);
+			return $result ? (int) $this->link->lastInsertId() : false;
 
 		}
 
 		public function password_generate($difficulty = 3, $length = 12) {
 
-			// Password generation logic here
-			
+			$sets = [
+				'abcdefghijklmnopqrstuvwxyz',
+				'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+				'0123456789',
+				'!@#$%^&*()-_=+[]{}|;:,.<>?'
+			];
+			$use  = array_slice($sets, 0, max(1, min((int) $difficulty, 4)));
+			$pool = implode('', $use);
+
+			$password = '';
+			foreach ($use as $set) {
+				$password .= $set[random_int(0, strlen($set) - 1)];
+			}
+			for ($i = strlen($password); $i < $length; $i++) {
+				$password .= $pool[random_int(0, strlen($pool) - 1)];
+			}
+
+			return str_shuffle($password);
+
 		}
 
 		public function password_hash($password) {
 
-			// Password hashing logic here
+			return password_hash($password, PASSWORD_DEFAULT);
 
 		}
 
 		public function password_validate($password, $hash) {
 
-			// Password validation logic here
+			return password_verify($password, $hash);
 
 		}
 
 		public function password_forgot($email) {
 
-			// Password reset logic here
+			$stmt = $this->link->prepare("SELECT id FROM {$this->table} WHERE email = ? AND status = 'active' LIMIT 1");
+			$stmt->execute([$email]);
+			$user = $stmt->fetch(PDO::FETCH_ASSOC);
+			if (!$user) {
+				return false;
+			}
+
+			$token   = bin2hex(random_bytes(32));
+			$expires = date('Y-m-d H:i:s', time() + 3600);
+
+			$stmt = $this->link->prepare(
+				"INSERT INTO password_resets (user_id, token, expires, created_at)
+				 VALUES (?, ?, ?, NOW())
+				 ON DUPLICATE KEY UPDATE token = VALUES(token), expires = VALUES(expires), created_at = NOW()"
+			);
+			$stmt->execute([$user['id'], hash('sha256', $token), $expires]);
+
+			return $token; // caller is responsible for sending this to the user
 
 		}
 
@@ -204,11 +258,32 @@
 
 		}
 
-		public function api_check($api_key) {
+		// public function api_check($api_key) {
 
-			// API key validation logic here
+		// 	if (empty($api_key)) {
+		// 		return false;
+		// 	}
 
-		}
+		// 	$stmt = $this->link->prepare("SELECT id FROM {$this->table} WHERE api_key = ? AND status = 'active' LIMIT 1");
+		// 	$stmt->execute([$api_key]);
+		// 	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		// 	return $row ? (int) $row['id'] : false;
+
+		// }
+
+        public function perm_groups() {
+
+            $stmt = $this->link->query("SELECT * FROM perm_group ORDER BY group_name");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        }
+
+        public function perm_permissions() {
+
+            $stmt = $this->link->query("SELECT * FROM perm_permission ORDER BY permission_name");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        }
 
 		public function id() {
 

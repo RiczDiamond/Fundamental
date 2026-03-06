@@ -107,10 +107,20 @@
                 $id = $data['id'] ?? $this->id ?? null;
                 if (empty($id)) return false;
 
+                if (array_key_exists('trash', $data) && !array_key_exists('deletion_requested_at', $data)) {
+                    $data['deletion_requested_at'] = ((int)$data['trash'] === 1) ? date('Y-m-d H:i:s') : null;
+                }
+                if (array_key_exists('banned', $data) && !array_key_exists('status', $data)) {
+                    $data['status'] = ((int)$data['banned'] === 1) ? 'banned' : 'active';
+                    if ((int)$data['banned'] === 0) {
+                        $data['banned_until'] = null;
+                        $data['ban_reason'] = null;
+                    }
+                }
+
                 $allowed = [
-                    'username','email','password','profile_picture','trash','street','street_num','postal','city','country',
-                    'gender','comment','bio','last_edit','last_edit_by','first_name','last_name','display_name','birth_date',
-                    'role','status','deletion_requested_at','banned_until','ban_reason','email_verified','last_login','last_ip','banned'
+                    'username','email','password','gender','first_name','last_name','display_name','birth_date',
+                    'role','status','deletion_requested_at','banned_until','ban_reason','email_verified','last_login','last_ip'
                 ];
 
                 $sets = [];
@@ -130,6 +140,7 @@
 
                 if (empty($sets)) return false;
 
+                $sets[] = 'updated_at = NOW()';
                 $params[] = $id;
                 $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id = ?";
                 $stmt = $this->link->prepare($sql);
@@ -137,10 +148,10 @@
 
         }
 
-        public function retrieve($id) {
+        public function trash($id) {
 
-                // Soft-delete: mark as trash
-                $stmt = $this->link->prepare("UPDATE {$this->table} SET trash = 1, last_edit = NOW() WHERE id = ?");
+            // Soft-delete: mark deletion request timestamp
+            $stmt = $this->link->prepare("UPDATE {$this->table} SET deletion_requested_at = NOW(), updated_at = NOW() WHERE id = ?");
                 return $stmt->execute([$id]);
 
         }
@@ -179,23 +190,23 @@
 
         private function get_trash_status($id) {
 
-                $stmt = $this->link->prepare("SELECT trash FROM {$this->table} WHERE id = ? LIMIT 1");
+            $stmt = $this->link->prepare("SELECT deletion_requested_at FROM {$this->table} WHERE id = ? LIMIT 1");
                 $stmt->execute([$id]);
                 $v = $stmt->fetch(PDO::FETCH_ASSOC);
-                return $v ? (bool) $v['trash'] : null;
+            return $v ? !empty($v['deletion_requested_at']) : null;
 
         }
 
         public function restore($id) {
 
-                $stmt = $this->link->prepare("UPDATE {$this->table} SET trash = 0, last_edit = NOW() WHERE id = ?");
+            $stmt = $this->link->prepare("UPDATE {$this->table} SET deletion_requested_at = NULL, updated_at = NOW() WHERE id = ?");
                 return $stmt->execute([$id]);
 
         }
 
         public function find($search) {
 
-                $q = "%" . str_replace('%', '\\%', $search) . "%";
+                $q = '%' . strtr($search, ['%' => '\%', '_' => '\_', '\\' => '\\\\']) . '%';
                 $stmt = $this->link->prepare("SELECT * FROM {$this->table} WHERE username LIKE ? OR email LIKE ? LIMIT 50");
                 $stmt->execute([$q, $q]);
                 return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -208,9 +219,52 @@
                     return $this->find($wildcard);
                 }
 
-                $stmt = $this->link->prepare("SELECT * FROM {$this->table} WHERE COALESCE(trash,0) = 0 ORDER BY created_at DESC");
+                $stmt = $this->link->prepare("SELECT * FROM {$this->table} WHERE deletion_requested_at IS NULL ORDER BY created_at DESC");
                 $stmt->execute();
                 return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        }
+
+        public function get_trash($limit = 200) {
+
+                $limit = max(1, min((int)$limit, 500));
+                $stmt = $this->link->prepare(
+                    "SELECT id, username, email, role, status, deletion_requested_at, banned_until, ban_reason, updated_at
+                     FROM {$this->table}
+                     WHERE deletion_requested_at IS NOT NULL
+                     ORDER BY updated_at DESC
+                     LIMIT {$limit}"
+                );
+                $stmt->execute();
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        }
+
+        public function get_dashboard_stats() {
+
+                $stats = [];
+
+                $stats['users_total'] = (int)$this->link->query(
+                    "SELECT COUNT(*) FROM {$this->table} WHERE deletion_requested_at IS NULL"
+                )->fetchColumn();
+
+                $stats['users_active'] = (int)$this->link->query(
+                    "SELECT COUNT(*) FROM {$this->table} WHERE deletion_requested_at IS NULL AND status='active'"
+                )->fetchColumn();
+
+                $stats['users_banned'] = (int)$this->link->query(
+                    "SELECT COUNT(*) FROM {$this->table} WHERE status='banned' OR (banned_until IS NOT NULL AND banned_until > NOW())"
+                )->fetchColumn();
+
+                $stats['users_trash'] = (int)$this->link->query(
+                    "SELECT COUNT(*) FROM {$this->table} WHERE deletion_requested_at IS NOT NULL"
+                )->fetchColumn();
+
+                $stats['users_active_week'] = (int)$this->link->query(
+                    "SELECT COUNT(*) FROM {$this->table} WHERE last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+                )->fetchColumn();
+
+                return $stats;
 
         }
 
@@ -257,52 +311,41 @@
 
         public function ban($id, $reason = null, $time = null) {
 
-                $params = [1, $id];
-                $sql = "UPDATE {$this->table} SET banned = ?, last_edit = NOW()";
-                // if banned_until column exists and $time provided
-                $hasUntil = false;
-                $check = $this->link->query("SHOW COLUMNS FROM {$this->table} LIKE 'banned_until'");
-                if ($check && $check->rowCount() > 0 && !empty($time)) {
+            $params = ['banned'];
+            $sql = "UPDATE {$this->table} SET status = ?, updated_at = NOW()";
+
+                if (!empty($time)) {
                     $sql .= ", banned_until = ?";
-                    $params = [1, date('Y-m-d H:i:s', $time), $id];
-                    $hasUntil = true;
+                    $params[] = date('Y-m-d H:i:s', $time);
+                }
+
+                if (!empty($reason)) {
+                    $sql .= ", ban_reason = ?";
+                    $params[] = $reason;
                 }
 
                 $sql .= " WHERE id = ?";
+                $params[] = $id;
                 $stmt = $this->link->prepare($sql);
-                $res = $stmt->execute($params);
-
-                if ($res && $reason) {
-                    // try to write reason to comment column if present
-                    $stmt = $this->link->prepare("UPDATE {$this->table} SET comment = CONCAT(IFNULL(comment, ''), ?) WHERE id = ?");
-                    $stmt->execute(["\n[ban] " . $reason, $id]);
-                }
-
-                return $res;
+                return $stmt->execute($params);
 
         }
 
         public function unban($id) {
 
-                // remove banned flag and banned_until if present
-                $sql = "UPDATE {$this->table} SET banned = 0, last_edit = NOW()";
-                $check = $this->link->query("SHOW COLUMNS FROM {$this->table} LIKE 'banned_until'");
-                if ($check && $check->rowCount() > 0) {
-                    $sql .= ", banned_until = NULL";
-                }
-                $sql .= " WHERE id = ?";
-                $stmt = $this->link->prepare($sql);
+            $stmt = $this->link->prepare("UPDATE {$this->table} SET status = 'active', banned_until = NULL, ban_reason = NULL, updated_at = NOW() WHERE id = ?");
                 return $stmt->execute([$id]);
 
         }
 
         private function get_ban_value($id) {
 
-                $stmt = $this->link->prepare("SELECT banned, (CASE WHEN COLUMN_NAME IS NOT NULL THEN (SELECT banned_until FROM {$this->table} WHERE id = ?) ELSE NULL END) AS banned_until, comment FROM {$this->table} LIMIT 1");
-                // The above trick cannot check column easily in a portable way, fallback to simple select
-                $stmt = $this->link->prepare("SELECT banned, banned_until, comment FROM {$this->table} WHERE id = ? LIMIT 1");
+                $stmt = $this->link->prepare("SELECT status, banned_until, ban_reason FROM {$this->table} WHERE id = ? LIMIT 1");
                 $stmt->execute([$id]);
                 $v = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($v) {
+                    $v['banned'] = ($v['status'] === 'banned') || (!empty($v['banned_until']) && strtotime($v['banned_until']) > time());
+                }
                 return $v ?: null;
 
         }

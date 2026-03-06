@@ -1,4 +1,12 @@
 <?php
+
+// Zodra een gebruiker een POST-verzoek indient, proberen we in te loggen met de opgegeven gegevens.
+if (isset($_SESSION['user_id'])) {
+    // Als er al een gebruiker is ingelogd, redirect naar dashboard
+    header('Location: /dashboard');
+    exit;
+}
+
 $error = '';
 $email = '';
 $rememberChecked = false;

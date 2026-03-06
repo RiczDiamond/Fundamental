@@ -2,13 +2,15 @@
 
 class Logging
 {
-    private $link;           
-    private $timeout = 3600; 
+    private $link;
+    private $timeout = 3600;
+    private $columnCache = null;  // cache for getExistingColumns()
+    private $rawBodyCache = null; // cache for php://input (readable only once)
 
-    public $auth = 'users';    
-    public $table;             
-    public $id;                
-    public $userId;            
+    public $auth = 'users';
+    public $table;
+    public $id;
+    public $userId;
     public $blockedBots = [
         'BadBot', 'Scraper', 'AhrefsBot', 'MJ12bot', 'Baiduspider'
     ];
@@ -99,39 +101,11 @@ class Logging
         // Extra context die we misschien willen onderzoeken
         $get = $_GET ?? [];
         $post = $_POST ?? [];
-        $rawBody = file_get_contents('php://input');
+        if ($this->rawBodyCache === null) {
+            $this->rawBodyCache = (string) file_get_contents('php://input');
+        }
+        $rawBody = $this->rawBodyCache;
         $headers = function_exists('getallheaders') ? getallheaders() : [];
-        // Detect suspicious content in URI, params or body
-        $suspicious = $this->detectSuspicious($requestUri, $get, $post, $rawBody, $ua);
-
-        // Bouw dynamische insert afhankelijk van welke kolommen in de logs-tabel bestaan
-        $baseCols = ['user_id', 'ip', 'user_agent', 'request_uri', 'referrer', 'method', 'created_at'];
-        $extraCols = [];
-        if ($suspicious['suspicious']) {
-            $extraCols[] = 'payload';
-            $extraCols[] = 'is_suspicious';
-        }
-
-        $available = $this->getExistingColumns(array_merge($baseCols, $extraCols));
-        $cols = [];
-        $placeholders = [];
-        $values = [];
-
-        foreach ($baseCols as $c) {
-            if (in_array($c, $available, true)) {
-                $cols[] = $c;
-                $placeholders[] = '?';
-                switch ($c) {
-                    case 'user_id': $values[] = $this->userId; break;
-                    case 'ip': $values[] = $ip; break;
-                    case 'user_agent': $values[] = $ua; break;
-                    case 'request_uri': $values[] = $requestUri; break;
-                    case 'referrer': $values[] = $referrer; break;
-                    case 'method': $values[] = $method; break;
-                    case 'created_at': $values[] = $timestamp; break;
-                }
-            }
-        }
 
             // Detect suspicious content in URI, params or body
             $suspicious = $this->detectSuspicious($requestUri, $get, $post, $rawBody, $ua);
@@ -331,11 +305,11 @@ class Logging
         // Als anoniem en verdacht: check en block indien nodig
         // (ingelogde gebruikers worden niet automatisch geblokkeerd)
         $isLegit = $this->isLegitUser();
-        // Her-run detectSuspicious quickly to decide blocking (could be cached in logRequest)
+        // Reuse data already collected in logRequest() (php://input can only be read once)
         $requestUri = $_SERVER['REQUEST_URI'] ?? '';
         $get = $_GET ?? [];
         $post = $_POST ?? [];
-        $rawBody = file_get_contents('php://input');
+        $rawBody = $this->rawBodyCache ?? '';
         $suspicious = $this->detectSuspicious($requestUri, $get, $post, $rawBody, $_SERVER['HTTP_USER_AGENT'] ?? '');
 
         if ($this->userId === null && $suspicious['suspicious'] && !$isLegit) {
@@ -349,19 +323,94 @@ class Logging
      */
     private function getExistingColumns(array $cols): array
     {
-        try {
-            $found = [];
-            $stmt = $this->link->query("DESCRIBE {$this->table}");
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $existing = array_map(function ($r) { return $r['Field']; }, $rows);
-            foreach ($cols as $c) {
-                if (in_array($c, $existing, true)) {
-                    $found[] = $c;
-                }
+        if ($this->columnCache === null) {
+            try {
+                $stmt = $this->link->query("DESCRIBE {$this->table}");
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $this->columnCache = array_map(function ($r) { return $r['Field']; }, $rows);
+            } catch (Exception $e) {
+                $this->columnCache = [];
             }
-            return $found;
+        }
+
+        return array_values(array_intersect($this->columnCache, $cols));
+    }
+
+    public function get_summary(): array
+    {
+        $summary = [
+            'logs_total' => null,
+            'logs_suspicious' => null,
+        ];
+
+        try {
+            $summary['logs_total'] = (int)$this->link->query("SELECT COUNT(*) FROM {$this->table}")->fetchColumn();
+            $summary['logs_suspicious'] = (int)$this->link->query("SELECT COUNT(*) FROM {$this->table} WHERE COALESCE(is_suspicious,0)=1")->fetchColumn();
         } catch (Exception $e) {
-            return []; // silent fallback
+            // keep null values when table/columns are unavailable
+        }
+
+        return $summary;
+    }
+
+    public function get_recent($limit = 100, $suspicious = null, $search = ''): array
+    {
+        $limit = max(1, min((int)$limit, 500));
+        $search = trim((string)$search);
+        $params = [];
+        $where = [];
+
+        $available = $this->getExistingColumns([
+            'id', 'user_id', 'ip', 'method', 'request_uri', 'referrer', 'user_agent',
+            'is_suspicious', 'duplicate_count', 'created_at'
+        ]);
+
+        if (empty($available)) {
+            return [];
+        }
+
+        $hasSuspiciousColumn = in_array('is_suspicious', $available, true);
+
+        if ($suspicious !== null && $suspicious !== '') {
+            if (!$hasSuspiciousColumn && (int)$suspicious === 1) {
+                return [];
+            }
+            if ($hasSuspiciousColumn) {
+            $where[] = 'COALESCE(is_suspicious,0) = ?';
+            $params[] = (int)$suspicious;
+            }
+        }
+
+        if ($search !== '') {
+            $like = '%' . strtr($search, ['%' => '\\%', '_' => '\\_']) . '%';
+            $where[] = '(ip LIKE ? OR request_uri LIKE ? OR user_agent LIKE ?)';
+            array_push($params, $like, $like, $like);
+        }
+
+        $select = [];
+        foreach (['id', 'user_id', 'ip', 'method', 'request_uri', 'referrer', 'user_agent', 'created_at'] as $column) {
+            if (in_array($column, $available, true)) {
+                $select[] = $column;
+            }
+        }
+
+        $select[] = $hasSuspiciousColumn ? 'COALESCE(is_suspicious,0) AS is_suspicious' : '0 AS is_suspicious';
+        $select[] = in_array('duplicate_count', $available, true) ? 'COALESCE(duplicate_count,1) AS duplicate_count' : '1 AS duplicate_count';
+
+        $sql = "SELECT " . implode(', ', $select) . " FROM {$this->table}";
+
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= ' ORDER BY created_at DESC LIMIT ' . $limit;
+
+        try {
+            $stmt = $this->link->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
         }
     }
 }
