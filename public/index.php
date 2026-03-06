@@ -1,31 +1,50 @@
 <?php
 
-    ini_set("display_errors", 1);
-    ini_set("display_startup_errors", 1);
-    error_reporting(E_ALL);
+    require_once '../core/bootstrap.php';
 
-    require_once __DIR__ . "/../bootstrap.php";
+    $account    = new Account($link);
+    $auth       = new Auth($link);
+    $cookie     = new Cookie();
+    $session    = new Session($link);
+    $logger     = new Logging($link);
 
-    // Ensure $url is defined (helpers/url.php normally sets it)
-    if (!isset($url) || !is_array($url)) {
-        $url = ['home'];
+    echo "<pre>";
+    print_r($_SESSION);
+    // // print_r($_SERVER);
+    // // print_r($_GET);
+    // // print_r($params);
+    // print_r($url);
+    echo "</pre>";
+
+    if (!$session->has('csrf')) {
+        $session->set('csrf', bin2hex(random_bytes(32)));
+    }
+    $csrfToken = $session->get('csrf');
+
+    $logger->handleRequest($_SESSION['user_id'] ?? null);
+
+
+     if ( isset($url[0]) && $url[0] === 'login' ) {
+
+        require_once '../views/login.view.php';
+
     }
 
-    //! Router
-    if (isset($url[0]) && $url[0] == 'dashboard') {
+    
+     if ( isset($url[0]) && $url[0] === 'logout' ) {
 
-        require_once DIR . '/_dashboard/_setup.php';
+        require_once '../views/logout.view.php';
 
-    } else {
+    }
 
-        if (isset($url[0]) && $url[0] === 'api') {
+    if ( isset($url[0]) && $url[0] === 'register' ) {
 
-            require_once DIR_API . '/_setup.php';
-            exit;
+        require_once '../views/register.view.php';
 
-        }
-        
-        // Frontend
-        require_once DIR . '/_website/_setup.php';
+    }
+
+    if ( isset($url[0]) && $url[0] === 'dashboard' ) {
+
+        require_once '../views/dashboard.view.php';
 
     }

@@ -1,9 +1,11 @@
 RewriteEngine On
 
-# Voorkom herschrijven als het om een bestaand fysiek bestand of directory gaat
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+# Zorg dat de RewriteBase correct is (pas aan als project in subfolder staat)
+# RewriteBase /
 
-# Forceer correcte encoding via index.php
+# Als request een bestaand bestand of map is → laat doorgaan
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Alle andere requests naar index.php
 RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
