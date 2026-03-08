@@ -1,0 +1,1 @@
+{"version":2,"defects":[],"times":{"Tests\\SanitizerServiceTest::testSanitizeTextCollapsesWhitespaceAndStripsTags":0,"Tests\\SanitizerServiceTest::testSanitizeUrlAllowsRelativeAndAbsoluteUrls":0.003,"Tests\\ValidationServiceTest::testValidateRequiredReturnsExpectedErrors":0,"Tests\\ValidationServiceTest::testValidateLengthReturnsErrorForTooLongInput":0}}

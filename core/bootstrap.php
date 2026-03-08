@@ -1,7 +1,15 @@
 <?php
 
-    // Classes are defined in the global namespace in /classes/*.php
-    // Remove incorrect namespaced imports to avoid "class not found" errors
+    $projectRoot = dirname(__DIR__);
+    $vendorAutoload = $projectRoot . '/vendor/autoload.php';
+    if (is_file($vendorAutoload)) {
+        require_once $vendorAutoload;
+
+        if (class_exists('Dotenv\\Dotenv')) {
+            $dotenv = Dotenv\Dotenv::createImmutable($projectRoot);
+            $dotenv->safeLoad();
+        }
+    }
 
     session_start();
 
@@ -15,11 +23,6 @@
     
     // Helpers
 
-    // Classes
-    require_once '../classes/Account.php';
-    require_once '../classes/Auth.php';
-    require_once '../classes/Analytics.php';
-    require_once '../classes/Cookie.php';
-    require_once '../classes/Session.php';
-    require_once '../classes/Logging.php';
-    
+    // Legacy global classes under /classes are loaded via Composer classmap.
+
+

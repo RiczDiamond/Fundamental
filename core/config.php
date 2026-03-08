@@ -1,14 +1,25 @@
 <?php
 
+    $dbHost = getenv('DB_HOST') ?: 'localhost';
+    $dbName = getenv('DB_NAME') ?: 'fundamental';
+    $dbUser = getenv('DB_USER') ?: 'root';
+    $dbPass = getenv('DB_PASS');
+    if ($dbPass === false) {
+        $dbPass = '';
+    }
+
+    $siteName = getenv('SITE_NAME') ?: 'Fundamental CMS';
+    $siteUrl = getenv('SITE_URL') ?: 'http://localhost/fundamental/';
+
     define('DB', [
-        'HOST' => 'localhost',
-        'NAME' => 'fundamental',
-        'USER' => 'root',
-        'PASS' => '',
+        'HOST' => $dbHost,
+        'NAME' => $dbName,
+        'USER' => $dbUser,
+        'PASS' => $dbPass,
     ]);
 
     // Site instellingen
     $site = [
-        'name' => 'Fundamental CMS',
-        'url' => 'http://localhost/fundamental/',
+        'name' => $siteName,
+        'url' => $siteUrl,
     ];
