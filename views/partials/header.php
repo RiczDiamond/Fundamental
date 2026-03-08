@@ -57,7 +57,37 @@ $sortMenu = function (&$nodes) use (&$sortMenu) {
 };
 $sortMenu($headerMenuTree);
 
-$renderMenuTree = function (array $nodes, bool $isSubmenu = false) use (&$renderMenuTree) {
+$currentPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+if (!is_string($currentPath) || $currentPath === '') {
+    $currentPath = '/';
+}
+
+$normalizePath = static function (string $url): string {
+    if (preg_match('/^(mailto:|tel:|#)/i', $url)) {
+        return '';
+    }
+
+    $parsedPath = parse_url($url, PHP_URL_PATH);
+    if (!is_string($parsedPath) || $parsedPath === '') {
+        $parsedPath = '/';
+    }
+
+    $normalized = '/' . trim($parsedPath, '/');
+    return $normalized === '//' ? '/' : (rtrim($normalized, '/') ?: '/');
+};
+
+$isActiveUrl = static function (string $url) use ($normalizePath, $currentPath): bool {
+    $targetPath = $normalizePath($url);
+    if ($targetPath === '') {
+        return false;
+    }
+
+    $currentNormalized = $normalizePath($currentPath);
+    return $currentNormalized === $targetPath
+        || ($targetPath !== '/' && str_starts_with($currentNormalized . '/', rtrim($targetPath, '/') . '/'));
+};
+
+$renderMenuTree = function (array $nodes, bool $isSubmenu = false) use (&$renderMenuTree, $isActiveUrl) {
     if (empty($nodes)) {
         return;
     }
@@ -67,7 +97,16 @@ $renderMenuTree = function (array $nodes, bool $isSubmenu = false) use (&$render
         $url = (string)($node['url'] ?? '/');
         $label = (string)($node['label'] ?? 'Link');
         $hasChildren = !empty($node['children']);
-        echo '<li class="' . ($hasChildren ? 'has-children' : 'no-children') . '"><a href="' . htmlspecialchars($url) . '">' . htmlspecialchars($label) . '</a>';
+        $itemClasses = [$hasChildren ? 'has-children' : 'no-children'];
+        if ($isActiveUrl($url)) {
+            $itemClasses[] = 'is-active';
+        }
+
+        echo '<li class="' . htmlspecialchars(implode(' ', $itemClasses)) . '"><a href="' . htmlspecialchars($url) . '"><span class="fh-menu-label">' . htmlspecialchars($label) . '</span>';
+        if ($hasChildren) {
+            echo '<span class="fh-menu-caret" aria-hidden="true"></span>';
+        }
+        echo '</a>';
         if (!empty($node['children'])) {
             $renderMenuTree($node['children'], true);
         }
@@ -76,155 +115,25 @@ $renderMenuTree = function (array $nodes, bool $isSubmenu = false) use (&$render
     echo '</ul>';
 };
 ?>
-<style>
-    .fh-header {
-        background: linear-gradient(110deg, #0b1325 0%, #162845 60%, #1b365f 100%);
-        color: #e5edf8;
-        padding: 14px 0;
-        margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 10px 28px rgba(10, 18, 36, 0.2);
-    }
-    .fh-header .fh-inner {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 0 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 18px;
-    }
-    .fh-brand {
-        font-family: "Segoe UI Variable Text", "Trebuchet MS", sans-serif;
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: 0.03em;
-        color: #f8fbff;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-    .fh-nav {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-        gap: 10px 14px;
-    }
-    .fh-nav a {
-        color: #d2dfef;
-        text-decoration: none;
-        font-size: 14px;
-        line-height: 1.2;
-        transition: color .15s ease;
-    }
-    .fh-nav a:hover,
-    .fh-nav a:focus-visible { color: #ffffff; }
-    .fh-menu-tree {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-    .fh-menu-tree.is-root {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-    }
-    .fh-menu-tree li { position: relative; }
-    .fh-menu-tree li > a {
-        display: inline-flex;
-        align-items: center;
-        padding: 8px 10px;
-        border-radius: 9px;
-    }
-    .fh-menu-tree li > a:hover,
-    .fh-menu-tree li > a:focus-visible {
-        background: rgba(255, 255, 255, 0.12);
-        color: #fff;
-    }
-    .fh-menu-tree li > .fh-menu-tree.is-submenu {
-        display: none;
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        min-width: 210px;
-        background: #0f1f39;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 10px;
-        padding: 8px;
-        z-index: 30;
-        box-shadow: 0 12px 28px rgba(8, 13, 24, 0.28);
-    }
-    .fh-menu-tree li:hover > .fh-menu-tree.is-submenu,
-    .fh-menu-tree li:focus-within > .fh-menu-tree.is-submenu {
-        display: block;
-    }
-    .fh-menu-tree.is-submenu li > a {
-        display: block;
-        width: 100%;
-        padding: 8px 10px;
-        border-radius: 8px;
-    }
-    .fh-auth-links {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding-left: 8px;
-        margin-left: 6px;
-        border-left: 1px solid rgba(255, 255, 255, 0.22);
-    }
-    .fh-auth-links a {
-        padding: 7px 10px;
-        border-radius: 8px;
-    }
-    .fh-auth-links a:hover,
-    .fh-auth-links a:focus-visible {
-        background: rgba(255, 255, 255, 0.12);
-        color: #fff;
-    }
-    @media (max-width: 900px) {
-        .fh-header .fh-inner {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 10px;
-        }
-        .fh-nav { justify-content: flex-start; }
-        .fh-menu-tree.is-root {
-            flex-wrap: wrap;
-            row-gap: 6px;
-        }
-    }
-    @media (max-width: 680px) {
-        .fh-menu-tree.is-root {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .fh-menu-tree li > .fh-menu-tree.is-submenu {
-            display: block;
-            position: static;
-            min-width: 0;
-            margin: 4px 0 0 10px;
-            border-radius: 8px;
-            box-shadow: none;
-        }
-        .fh-auth-links {
-            margin-left: 0;
-            padding-left: 0;
-            border-left: none;
-        }
-    }
-</style>
 <header class="fh-header">
     <div class="fh-inner">
-        <a class="fh-brand" href="/"><?php echo htmlspecialchars($headerTitle); ?></a>
-        <nav class="fh-nav">
+        <a class="fh-brand" href="/" aria-label="Ga naar home">
+            <span class="fh-brand-mark">F</span>
+            <span class="fh-brand-copy">
+                <span class="fh-brand-kicker">Editorial websites</span>
+                <span class="fh-brand-name"><?php echo htmlspecialchars($headerTitle); ?></span>
+            </span>
+        </a>
+
+        <nav class="fh-nav" aria-label="Hoofdnavigatie">
             <?php $renderMenuTree($headerMenuTree); ?>
             <span class="fh-auth-links">
                 <?php if ($headerIsLoggedIn) : ?>
-                    <a href="/dashboard/overview">Dashboard</a>
-                    <a href="/logout">Logout</a>
+                    <a class="fh-auth-link fh-auth-link--primary" href="/dashboard/overview">Dashboard</a>
+                    <a class="fh-auth-link" href="/logout">Logout</a>
                 <?php else : ?>
-                    <a href="/login">Login</a>
-                    <a href="/register">Register</a>
+                    <a class="fh-auth-link" href="/login">Login</a>
+                    <a class="fh-auth-link fh-auth-link--primary" href="/register">Register</a>
                 <?php endif; ?>
             </span>
         </nav>

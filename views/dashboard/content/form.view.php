@@ -11,8 +11,9 @@ if (!empty($item['payload_json'])) {
     }
 }
 $formAction = $isEdit
-    ? '/dashboard/content/' . ($typeDefinition['slug'] ?? $typeKey) . '/edit/' . (int)($item['id'] ?? 0)
-    : '/dashboard/content/' . ($typeDefinition['slug'] ?? $typeKey) . '/create';
+    ? '/dashboard/' . ($typeDefinition['slug'] ?? $typeKey) . '/edit/' . (int)($item['id'] ?? 0)
+    : '/dashboard/' . ($typeDefinition['slug'] ?? $typeKey) . '/create';
+$baseDashboardPath = '/dashboard/' . ($typeDefinition['slug'] ?? $typeKey);
 
 $contentFormHeading = trim((string)($contentTypeFormHeading ?? ''));
 if ($contentFormHeading === '') {
@@ -21,8 +22,137 @@ if ($contentFormHeading === '') {
 
 $contentFormIntro = trim((string)($contentTypeFormIntro ?? ''));
 if ($contentFormIntro === '') {
-    $contentFormIntro = $contentFormHeading . ' beheren via aparte URL.';
+    $contentFormIntro = 'Manage ' . $contentFormHeading . ' in a dedicated editor screen.';
 }
+
+$toDatetimeLocal = static function ($value) {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    $ts = strtotime($value);
+    return $ts ? date('Y-m-d\\TH:i', $ts) : '';
+};
+
+$baseFields = [
+    [
+        'id' => 'content-title',
+        'name' => 'title',
+        'label' => 'Title',
+        'type' => 'text',
+        'value' => (string)($item['title'] ?? ''),
+        'required' => true,
+    ],
+    [
+        'id' => 'content-slug',
+        'name' => 'slug',
+        'label' => 'Permalink',
+        'type' => 'text',
+        'value' => (string)($item['slug'] ?? ''),
+        'placeholder' => 'auto-generated if empty',
+    ],
+    [
+        'id' => 'content-status',
+        'name' => 'status',
+        'label' => 'Status',
+        'type' => 'select',
+        'value' => (string)($item['status'] ?? 'draft'),
+        'options' => [
+            'draft' => 'Draft',
+            'review' => 'In Review',
+            'approved' => 'Approved',
+            'published' => 'Published',
+            'archived' => 'Archived',
+        ],
+    ],
+    [
+        'id' => 'content-published-at',
+        'name' => 'published_at',
+        'label' => 'Publish Date',
+        'type' => 'datetime',
+        'value' => $toDatetimeLocal($item['published_at'] ?? ''),
+    ],
+    [
+        'id' => 'content-starts-at',
+        'name' => 'starts_at',
+        'label' => 'Start Date',
+        'type' => 'datetime',
+        'value' => $toDatetimeLocal($item['starts_at'] ?? ''),
+    ],
+    [
+        'id' => 'content-ends-at',
+        'name' => 'ends_at',
+        'label' => 'End Date',
+        'type' => 'datetime',
+        'value' => $toDatetimeLocal($item['ends_at'] ?? ''),
+    ],
+];
+
+$contentMainFields = [
+    [
+        'id' => 'content-excerpt',
+        'name' => 'excerpt',
+        'label' => 'Excerpt',
+        'type' => 'textarea',
+        'rows' => 3,
+        'value' => (string)($item['excerpt'] ?? ''),
+    ],
+    [
+        'id' => 'content-main',
+        'name' => 'content',
+        'label' => 'Content',
+        'type' => 'textarea',
+        'rows' => 12,
+        'value' => (string)($item['content'] ?? ''),
+    ],
+    [
+        'id' => 'content-featured-image',
+        'name' => 'featured_image',
+        'label' => 'Featured Image',
+        'type' => 'media',
+        'value' => (string)($item['featured_image'] ?? ''),
+        'placeholder' => 'Choose or paste an image URL',
+        'show_preview' => true,
+    ],
+];
+
+$typeFields = [];
+foreach (($typeDefinition['fields'] ?? []) as $field) {
+    $fieldName = (string)($field['name'] ?? '');
+    if ($fieldName === '') {
+        continue;
+    }
+    $fieldValue = (string)($payload[$fieldName] ?? '');
+    $fieldType = (string)($field['type'] ?? 'text');
+    $fieldLabel = (string)($field['label'] ?? $fieldName);
+
+    $typeFields[] = [
+        'id' => 'payload_' . $fieldName,
+        'name' => 'payload_' . $fieldName,
+        'label' => $fieldLabel,
+        'type' => $fieldType === 'textarea' ? 'textarea' : ($fieldType === 'media' ? 'media' : 'text'),
+        'value' => $fieldValue,
+        'rows' => 4,
+        'placeholder' => $fieldLabel,
+    ];
+}
+
+$seoFields = [
+    [
+        'id' => 'content-meta-title',
+        'name' => 'meta_title',
+        'label' => 'SEO Title',
+        'type' => 'text',
+        'value' => (string)($item['meta_title'] ?? ''),
+    ],
+    [
+        'id' => 'content-meta-description',
+        'name' => 'meta_description',
+        'label' => 'Meta Description',
+        'type' => 'text',
+        'value' => (string)($item['meta_description'] ?? ''),
+    ],
+];
 ?>
 <style>
     .content-editor { display: grid; gap: 12px; }
@@ -44,103 +174,68 @@ if ($contentFormIntro === '') {
             <input type="hidden" name="id" value="<?php echo (int)$item['id']; ?>">
         <?php endif; ?>
 
-        <div class="row" style="justify-content:space-between; align-items:center;">
-            <p class="muted" style="margin:0;"><?php echo htmlspecialchars($contentFormIntro); ?></p>
-            <a href="/dashboard/content/<?php echo htmlspecialchars($typeDefinition['slug'] ?? $typeKey); ?>">Terug naar overzicht</a>
-        </div>
+        <?php require __DIR__ . '/components/form-header.view.php'; ?>
 
-        <section class="section">
-            <h3 style="margin:0 0 8px;">Basis</h3>
-            <div class="content-editor-grid">
-                <div class="content-editor-field">
-                    <label for="content-title">Titel</label>
-                    <input id="content-title" type="text" name="title" required value="<?php echo htmlspecialchars($item['title'] ?? ''); ?>">
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-slug">Slug</label>
-                    <input id="content-slug" type="text" name="slug" value="<?php echo htmlspecialchars($item['slug'] ?? ''); ?>">
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-status">Status</label>
-                    <select id="content-status" name="status">
-                        <option value="draft" <?php echo (($item['status'] ?? 'draft') === 'draft') ? 'selected' : ''; ?>>Draft</option>
-                        <option value="published" <?php echo (($item['status'] ?? '') === 'published') ? 'selected' : ''; ?>>Published</option>
-                        <option value="archived" <?php echo (($item['status'] ?? '') === 'archived') ? 'selected' : ''; ?>>Archived</option>
-                    </select>
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-published-at">Publicatiedatum</label>
-                    <input id="content-published-at" type="datetime-local" name="published_at" value="<?php echo !empty($item['published_at']) ? htmlspecialchars(date('Y-m-d\\TH:i', strtotime((string)$item['published_at']))) : ''; ?>">
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-starts-at">Startdatum (events/vacatures)</label>
-                    <input id="content-starts-at" type="datetime-local" name="starts_at" value="<?php echo !empty($item['starts_at']) ? htmlspecialchars(date('Y-m-d\\TH:i', strtotime((string)$item['starts_at']))) : ''; ?>">
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-ends-at">Einddatum</label>
-                    <input id="content-ends-at" type="datetime-local" name="ends_at" value="<?php echo !empty($item['ends_at']) ? htmlspecialchars(date('Y-m-d\\TH:i', strtotime((string)$item['ends_at']))) : ''; ?>">
-                </div>
-            </div>
-        </section>
+        <?php
+        $sectionTitle = 'Post Settings';
+        $sectionFields = $baseFields;
+        $sectionGrid = true;
+        require __DIR__ . '/components/form-section.view.php';
+        ?>
 
-        <section class="section">
-            <h3 style="margin:0 0 8px;">Content</h3>
-            <div class="content-editor-field" style="margin-bottom:10px;">
-                <label for="content-excerpt">Excerpt</label>
-                <textarea id="content-excerpt" name="excerpt" rows="3"><?php echo htmlspecialchars($item['excerpt'] ?? ''); ?></textarea>
-            </div>
-            <div class="content-editor-field" style="margin-bottom:10px;">
-                <label for="content-main">Inhoud</label>
-                <textarea id="content-main" name="content" rows="12"><?php echo htmlspecialchars($item['content'] ?? ''); ?></textarea>
-            </div>
-            <div class="content-editor-field">
-                <label for="content-featured-image">Featured image URL</label>
-                <input id="content-featured-image" type="text" name="featured_image" value="<?php echo htmlspecialchars($item['featured_image'] ?? ''); ?>">
-            </div>
-        </section>
+        <?php
+        $sectionTitle = 'Content';
+        $sectionFields = $contentMainFields;
+        $sectionGrid = false;
+        require __DIR__ . '/components/form-section.view.php';
+        ?>
 
-        <section class="section">
-            <h3 style="margin:0 0 8px;">Type velden</h3>
-            <div class="content-editor-grid">
-                <?php foreach (($typeDefinition['fields'] ?? []) as $field) : ?>
-                    <?php
-                        $fieldName = (string)($field['name'] ?? '');
-                        if ($fieldName === '') {
-                            continue;
-                        }
-                        $fieldValue = (string)($payload[$fieldName] ?? '');
-                        $inputName = 'payload_' . $fieldName;
-                        $isTextarea = (($field['type'] ?? 'text') === 'textarea');
-                    ?>
-                    <div class="content-editor-field">
-                        <label for="<?php echo htmlspecialchars($inputName); ?>"><?php echo htmlspecialchars((string)($field['label'] ?? $fieldName)); ?></label>
-                        <?php if ($isTextarea) : ?>
-                            <textarea id="<?php echo htmlspecialchars($inputName); ?>" name="<?php echo htmlspecialchars($inputName); ?>" rows="4"><?php echo htmlspecialchars($fieldValue); ?></textarea>
-                        <?php else : ?>
-                            <input id="<?php echo htmlspecialchars($inputName); ?>" type="text" name="<?php echo htmlspecialchars($inputName); ?>" value="<?php echo htmlspecialchars($fieldValue); ?>">
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </section>
+        <?php if (!empty($typeFields)) : ?>
+            <?php
+            $sectionTitle = 'Custom Fields';
+            $sectionFields = $typeFields;
+            $sectionGrid = true;
+            require __DIR__ . '/components/form-section.view.php';
+            ?>
+        <?php endif; ?>
 
-        <section class="section">
-            <h3 style="margin:0 0 8px;">SEO</h3>
-            <div class="content-editor-grid">
-                <div class="content-editor-field">
-                    <label for="content-meta-title">Meta title</label>
-                    <input id="content-meta-title" type="text" name="meta_title" value="<?php echo htmlspecialchars($item['meta_title'] ?? ''); ?>">
-                </div>
-                <div class="content-editor-field">
-                    <label for="content-meta-description">Meta description</label>
-                    <input id="content-meta-description" type="text" name="meta_description" value="<?php echo htmlspecialchars($item['meta_description'] ?? ''); ?>">
-                </div>
-            </div>
-        </section>
+        <?php
+        $sectionTitle = 'SEO';
+        $sectionFields = $seoFields;
+        $sectionGrid = true;
+        require __DIR__ . '/components/form-section.view.php';
+        ?>
 
-        <div class="row">
-            <button type="submit" <?php echo !$canPagesWrite ? 'disabled' : ''; ?>><?php echo $isEdit ? 'Opslaan' : 'Aanmaken'; ?></button>
-            <a href="/dashboard/content/<?php echo htmlspecialchars($typeDefinition['slug'] ?? $typeKey); ?>">Annuleren</a>
-        </div>
+        <?php require __DIR__ . '/components/form-actions.view.php'; ?>
     </form>
 </div>
+
+<script>
+(function () {
+    var form = document.querySelector('form.content-editor');
+    if (!form) return;
+
+    function initEditorBindings() {
+        if (!window.FundamentalEditor) {
+            return false;
+        }
+        form.querySelectorAll('.js-wysiwyg').forEach(function (textarea) {
+            window.FundamentalEditor.initWysiwyg(textarea);
+        });
+        form.querySelectorAll('.js-open-media').forEach(function (button) {
+            window.FundamentalEditor.bindMediaButton(button);
+        });
+        form.querySelectorAll('.js-image-preview').forEach(function (previewWrap) {
+            window.FundamentalEditor.bindImagePreview(previewWrap);
+        });
+        form.addEventListener('submit', function () {
+            window.FundamentalEditor.syncForm(form);
+        });
+        return true;
+    }
+
+    if (!initEditorBindings()) {
+        document.addEventListener('DOMContentLoaded', initEditorBindings, { once: true });
+    }
+})();
+</script>

@@ -1,144 +1,87 @@
 <?php
-
-// Zodra een gebruiker een POST-verzoek indient, proberen we in te loggen met de opgegeven gegevens.
-if (isset($_SESSION['user_id'])) {
-    // Als er al een gebruiker is ingelogd, redirect naar dashboard
-    header('Location: /dashboard');
-    exit;
-}
-
-$error = '';
-$email = '';
-$rememberChecked = false;
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
-    $password = $_POST['password'] ?? '';
-    $rememberChecked = isset($_POST['remember']);
-
-    if (!$email || !$password) {
-        $error = "Vul alle velden correct in";
-    } elseif ($auth->login($email, $password, $rememberChecked)) {
-        // Succes, redirect naar dashboard
-        header('Location: /dashboard');
-        exit;
-    } else {
-        $error = "Login mislukt, controleer je gegevens";
-        sleep(1); // eenvoudige brute-force bescherming
-    }
-}
+$error = (string)($error ?? '');
+$email = (string)($email ?? '');
+$rememberChecked = (bool)($rememberChecked ?? false);
+$csrfToken = (string)($csrfToken ?? '');
 ?>
 
 <!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Fundamental CMS</title>
-    <style>
-        /* Algemene body styling */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        /* Login container */
-        .login-container {
-            background-color: #fff;
-            padding: 40px 50px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 350px;
-            text-align: center;
-        }
-
-        h1 {
-            margin-bottom: 25px;
-            color: #333;
-        }
-
-        /* Input velden */
-        input[type="email"],
-        input[type="password"] {
-            width: 100%;
-            padding: 12px 15px;
-            margin: 8px 0 20px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-
-        /* Button */
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            width: 100%;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        /* Error bericht */
-        p.error {
-            color: red;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-
-        /* Label styling */
-        label {
-            font-weight: bold;
-            display: block;
-            text-align: left;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="/assets/css/site.css">
 </head>
-<body>
-    <div class="login-container">
-        <h1>Login</h1>
+<body class="site-shell">
+<?php $siteHeaderTitle = 'Fundamental CMS'; require __DIR__ . '/partials/header.php'; ?>
+<main class="container py-4 site-main">
+    <section class="auth-shell">
+        <article class="auth-card">
+            <p class="auth-kicker">Terug in je workspace</p>
+            <h1 class="h2 mb-2">Login</h1>
+            <p class="site-lead mb-4">Log in om pages, blogposts en content vanuit dezelfde omgeving te beheren.</p>
 
-        <?php if (!empty($error)) : ?>
-            <p class="error"><?php echo htmlspecialchars($error); ?></p>
-        <?php endif; ?>
+            <?php if (!empty($error)) : ?>
+                <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
 
-        <form action="/login" method="POST">
-            <label>Email:</label>
-            <input 
-                type="email" 
-                name="email" 
-                value="<?= htmlspecialchars($email ?? '') ?>" 
-                autocomplete="email" 
-                required
-            >
+            <form class="auth-form auth-grid" action="/login" method="POST">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
 
-            <label>Wachtwoord:</label>
-            <input 
-                type="password" 
-                name="password" 
-                autocomplete="current-password" 
-                required
-            >
+                <div>
+                    <label class="form-label" for="login_email">Email</label>
+                    <input
+                        class="form-control"
+                        id="login_email"
+                        type="email"
+                        name="email"
+                        value="<?= htmlspecialchars($email) ?>"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
 
-            <label>
-                <input type="checkbox" name="remember" <?= $rememberChecked ? 'checked' : '' ?>>
-                Onthoud mij
-            </label>
+                <div>
+                    <label class="form-label" for="login_password">Wachtwoord</label>
+                    <input
+                        class="form-control"
+                        id="login_password"
+                        type="password"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
 
-            <button type="submit">Login</button>
-        </form>
-    </div>
+                <label class="form-check" for="login_remember">
+                    <input id="login_remember" type="checkbox" name="remember" <?= $rememberChecked ? 'checked' : '' ?>>
+                    <span>Onthoud mij</span>
+                </label>
+
+                <button class="btn btn-primary w-100" type="submit">Login</button>
+            </form>
+
+            <div class="auth-links-row">
+                <a class="btn btn-outline-secondary btn-sm" href="/register">Nog geen account?</a>
+                <a class="btn btn-outline-secondary btn-sm" href="/">Terug naar site</a>
+            </div>
+        </article>
+
+        <aside class="auth-side-card">
+            <p class="auth-kicker">Fundamental CMS</p>
+            <h2 class="h3 text-white">Een rustigere, meer premium uitstraling voor je contentomgeving.</h2>
+            <p>Deze login sluit nu aan op dezelfde look als de publieke site, in plaats van een losstaand standaardformulier.</p>
+            <ul class="auth-side-list">
+                <li>Consistente typografie en kleuren</li>
+                <li>Betere focus states en formulierhiërarchie</li>
+                <li>Zelfde branding als pages en blog</li>
+            </ul>
+        </aside>
+    </section>
+</main>
+<?php require __DIR__ . '/partials/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

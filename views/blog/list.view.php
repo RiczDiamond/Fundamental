@@ -5,80 +5,99 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blog - Fundamental CMS</title>
-    <style>
-        body { font-family: Arial, sans-serif; background:#f5f7fb; margin:0; color:#1f2937; }
-        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-        .layout { display:grid; grid-template-columns:1fr 280px; gap:14px; }
-        .card { background:#fff; border-radius:10px; padding:16px; box-shadow: 0 2px 8px rgba(0,0,0,.05); margin-bottom: 12px; }
-        a { color:#2563eb; text-decoration:none; }
-        .muted { color:#64748b; font-size:13px; }
-        h1, h2 { margin-top:0; }
-        .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-        .tag { background:#e2e8f0; color:#334155; border-radius:999px; padding:3px 8px; font-size:12px; }
-        @media (max-width: 960px) { .layout { grid-template-columns:1fr; } }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="/assets/css/site.css">
 </head>
-<body>
+<body class="site-shell">
 <?php $siteHeaderTitle = 'Fundamental CMS'; require __DIR__ . '/../partials/header.php'; ?>
-<div class="container">
-    <h1>Blog</h1>
+<main class="container py-4 site-main">
+    <section class="site-intro mb-4">
+        <p class="site-kicker">Stories & updates</p>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3">
+            <div>
+                <h1 class="site-title h2 mb-2">Blog</h1>
+                <p class="site-lead mb-0">Artikelen, inzichten en updates in een rustiger editorial jasje in plaats van standaard dashboard-kaarten.</p>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" href="/">Terug naar home</a>
+        </div>
+    </section>
+
     <?php if (!empty($_GET['category'])) : ?>
-        <p class="muted">Filter: categorie <strong><?php echo htmlspecialchars($_GET['category']); ?></strong> · <a href="/blog">toon alles</a></p>
+        <div class="alert alert-info py-2">
+            Filter: categorie <strong><?php echo htmlspecialchars($_GET['category']); ?></strong> ·
+            <a class="alert-link" href="/blog">toon alles</a>
+        </div>
     <?php endif; ?>
-    <div class="layout">
-        <main>
+
+    <div class="row g-4">
+        <main class="col-12 col-lg-8">
             <?php if (empty($posts)) : ?>
-                <div class="card">Er zijn nog geen gepubliceerde posts.</div>
+                <div class="card border-0 shadow-sm rounded-4 site-panel">
+                    <div class="card-body">Er zijn nog geen gepubliceerde posts.</div>
+                </div>
             <?php else : ?>
                 <?php foreach ($posts as $post) : ?>
                     <?php $tags = array_values(array_filter(array_map('trim', explode(',', (string)($post['tags'] ?? ''))))); ?>
                     <?php $readMinutes = max(1, (int)ceil(str_word_count(trim(strip_tags((string)($post['content'] ?? '')))) / 220)); ?>
-                    <article class="card">
-                        <h2>
-                            <a href="<?php echo htmlspecialchars($post['permalink'] ?? ('/blog/' . ($post['slug'] ?? ''))); ?>">
-                                <?php echo htmlspecialchars($post['title'] ?? ''); ?>
-                            </a>
-                        </h2>
-                        <div class="muted">
-                            <?php echo htmlspecialchars($post['published_at'] ?? $post['created_at'] ?? ''); ?>
-                            · <?php echo $readMinutes; ?> min lezen
-                            <?php if (!empty($post['category'])) : ?> · Categorie: <?php echo htmlspecialchars($post['category']); ?><?php endif; ?>
-                        </div>
+                    <article class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden site-panel">
                         <?php if (!empty($post['featured_image'])) : ?>
-                            <img src="<?php echo htmlspecialchars($post['featured_image']); ?>" alt="<?php echo htmlspecialchars($post['title'] ?? ''); ?>" loading="lazy" style="width:100%; border-radius:8px; margin:10px 0;">
+                            <img class="img-fluid" src="<?php echo htmlspecialchars($post['featured_image']); ?>" alt="<?php echo htmlspecialchars($post['title'] ?? ''); ?>" loading="lazy">
                         <?php endif; ?>
-                        <?php if (!empty($post['intro'])) : ?>
-                            <p><strong><?php echo nl2br(htmlspecialchars($post['intro'])); ?></strong></p>
-                        <?php elseif (!empty($post['excerpt'])) : ?>
-                            <p><?php echo nl2br(htmlspecialchars($post['excerpt'])); ?></p>
-                        <?php endif; ?>
-                        <?php if (!empty($tags)) : ?>
-                            <div class="tags">
-                                <?php foreach ($tags as $tag) : ?>
-                                    <span class="tag">#<?php echo htmlspecialchars($tag); ?></span>
-                                <?php endforeach; ?>
+                        <div class="card-body p-4">
+                            <h2 class="h4 mb-2">
+                                <a class="text-decoration-none" href="<?php echo htmlspecialchars($post['permalink'] ?? ('/blog/' . ($post['slug'] ?? ''))); ?>">
+                                <?php echo htmlspecialchars($post['title'] ?? ''); ?>
+                                </a>
+                            </h2>
+                            <div class="small text-secondary mb-3">
+                                <?php echo htmlspecialchars($post['published_at'] ?? $post['created_at'] ?? ''); ?>
+                                · <?php echo $readMinutes; ?> min lezen
+                                <?php if (!empty($post['category'])) : ?> · Categorie: <?php echo htmlspecialchars($post['category']); ?><?php endif; ?>
                             </div>
-                        <?php endif; ?>
+
+                            <?php if (!empty($post['intro'])) : ?>
+                                <p class="mb-2"><strong><?php echo nl2br(htmlspecialchars($post['intro'])); ?></strong></p>
+                            <?php elseif (!empty($post['excerpt'])) : ?>
+                                <p class="mb-2"><?php echo nl2br(htmlspecialchars($post['excerpt'])); ?></p>
+                            <?php endif; ?>
+
+                            <?php if (!empty($tags)) : ?>
+                                <div class="d-flex flex-wrap gap-1 mb-3">
+                                    <?php foreach ($tags as $tag) : ?>
+                                        <span class="badge text-bg-light border">#<?php echo htmlspecialchars($tag); ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <a class="btn btn-primary" href="<?php echo htmlspecialchars($post['permalink'] ?? ('/blog/' . ($post['slug'] ?? ''))); ?>">Lees artikel</a>
+                        </div>
                     </article>
                 <?php endforeach; ?>
             <?php endif; ?>
         </main>
-        <aside>
-            <section class="card">
-                <h3>Categorieën</h3>
+
+        <aside class="col-12 col-lg-4">
+            <section class="card border-0 shadow-sm rounded-4 site-panel">
+                <div class="card-body">
+                <h3 class="h5">Categorieën</h3>
                 <?php if (empty($categories)) : ?>
-                    <p class="muted">Geen categorieën.</p>
+                    <p class="text-secondary mb-0">Geen categorieën.</p>
                 <?php else : ?>
-                    <ul>
+                    <ul class="list-group list-group-flush">
                         <?php foreach ($categories as $category) : ?>
-                            <li><?php echo htmlspecialchars($category['category']); ?> (<?php echo (int)$category['total']; ?>)</li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span><?php echo htmlspecialchars($category['category']); ?></span>
+                                <span class="badge text-bg-secondary"><?php echo (int)$category['total']; ?></span>
+                            </li>
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
+                </div>
             </section>
         </aside>
     </div>
-</div>
+</main>
 <?php require __DIR__ . '/../partials/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -38,106 +38,71 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Fundamental CMS</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        .register-container {
-            background-color: #fff;
-            padding: 40px 50px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 350px;
-            text-align: center;
-        }
-
-        h1 {
-            margin-bottom: 25px;
-            color: #333;
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
-            width: 100%;
-            padding: 12px 15px;
-            margin: 8px 0 20px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            width: 100%;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        p.error {
-            color: red;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-
-        p.success {
-            color: green;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-
-        label {
-            font-weight: bold;
-            display: block;
-            text-align: left;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="/assets/css/site.css">
 </head>
-<body>
-    <div class="register-container">
-        <h1>Register</h1>
+<body class="site-shell">
+<?php $siteHeaderTitle = 'Fundamental CMS'; require __DIR__ . '/partials/header.php'; ?>
+<main class="container py-4 site-main">
+    <section class="auth-shell">
+        <article class="auth-card">
+            <p class="auth-kicker">Nieuw account</p>
+            <h1 class="h2 mb-2">Register</h1>
+            <p class="site-lead mb-4">Maak een account aan en beheer je site vanuit dezelfde visuele stijl als de rest van het platform.</p>
 
-        <?php if (!empty($error)) : ?>
-            <p class="error"><?php echo htmlspecialchars($error); ?></p>
-        <?php endif; ?>
+            <?php if (!empty($error)) : ?>
+                <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
 
-        <?php if (!empty($success)) : ?>
-            <p class="success"><?php echo $success; ?></p>
-        <?php endif; ?>
+            <?php if (!empty($success)) : ?>
+                <div class="alert alert-success" role="alert"><?php echo $success; ?></div>
+            <?php endif; ?>
 
-        <form action="/register" method="POST">
-            <label>Email:</label>
-            <input type="email" name="email" required>
+            <form class="auth-form auth-grid" action="/register" method="POST">
+                <div>
+                    <label class="form-label" for="register_email">Email</label>
+                    <input class="form-control" id="register_email" type="email" name="email" value="<?php echo htmlspecialchars((string)($_POST['email'] ?? '')); ?>" required>
+                </div>
 
-            <label>Gebruikersnaam:</label>
-            <input type="text" name="username" required>
+                <div>
+                    <label class="form-label" for="register_username">Gebruikersnaam</label>
+                    <input class="form-control" id="register_username" type="text" name="username" value="<?php echo htmlspecialchars((string)($_POST['username'] ?? '')); ?>" required>
+                </div>
 
-            <label>Wachtwoord:</label>
-            <input type="password" name="password" required>
+                <div>
+                    <label class="form-label" for="register_password">Wachtwoord</label>
+                    <input class="form-control" id="register_password" type="password" name="password" required>
+                </div>
 
-            <label>Bevestig wachtwoord:</label>
-            <input type="password" name="password_confirm" required>
+                <div>
+                    <label class="form-label" for="register_password_confirm">Bevestig wachtwoord</label>
+                    <input class="form-control" id="register_password_confirm" type="password" name="password_confirm" required>
+                </div>
 
-            <button type="submit">Register</button>
-        </form>
-    </div>
+                <button class="btn btn-primary w-100" type="submit">Register</button>
+            </form>
+
+            <div class="auth-links-row">
+                <a class="btn btn-outline-secondary btn-sm" href="/login">Ik heb al een account</a>
+                <a class="btn btn-outline-secondary btn-sm" href="/">Terug naar site</a>
+            </div>
+        </article>
+
+        <aside class="auth-side-card">
+            <p class="auth-kicker">Waarom deze stijl</p>
+            <h2 class="h3 text-white">De auth-flow voelt nu als onderdeel van dezelfde website.</h2>
+            <p>Geen losse grijze formulieren meer, maar een consistente ervaring die beter past bij een zakelijke of editorial site.</p>
+            <ul class="auth-side-list">
+                <li>Duidelijkere hiërarchie tussen acties en tekst</li>
+                <li>Meer premium kleur- en typografiecombinatie</li>
+                <li>Mobiel en desktop beide leesbaar</li>
+            </ul>
+        </aside>
+    </section>
+</main>
+<?php require __DIR__ . '/partials/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

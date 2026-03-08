@@ -34,9 +34,43 @@ $previewLink = !empty($createdPreviewToken) ? (BASE_URL . '/blog/preview/' . $cr
             <input type="datetime-local" name="scheduled_at" value="<?php echo !empty($blogFormData['scheduled_at']) ? htmlspecialchars(date('Y-m-d\\TH:i', strtotime($blogFormData['scheduled_at']))) : ''; ?>" title="Geplande publicatie">
         </div>
 
-        <div class="row" style="margin-bottom:10px;">
-            <input type="text" name="featured_image" value="<?php echo htmlspecialchars($blogFormData['featured_image'] ?? ''); ?>" placeholder="Featured image URL" style="flex:1; min-width:280px;">
-            <input type="text" name="og_image" value="<?php echo htmlspecialchars($blogFormData['og_image'] ?? ''); ?>" placeholder="OG image URL" style="flex:1; min-width:280px;">
+        <div class="two-col" style="margin-bottom:10px;">
+            <div>
+                <label class="small" for="blog-featured-image">Featured image</label>
+                <?php
+                    $mediaInputId = 'blog-featured-image';
+                    $mediaInputName = 'featured_image';
+                    $mediaInputValue = (string)($blogFormData['featured_image'] ?? '');
+                    $mediaInputPlaceholder = 'Featured image URL';
+                    $mediaInputStyle = 'width:100%;';
+                    $mediaInputDisabled = false;
+                    require __DIR__ . '/../partials/media-input.view.php';
+
+                    $imagePreviewWrapId = 'blog-featured-image-preview-wrap';
+                    $imagePreviewInputId = 'blog-featured-image';
+                    $imagePreviewImgId = 'blog-featured-image-preview';
+                    $imagePreviewAlt = 'Featured image preview';
+                    require __DIR__ . '/../partials/image-preview.view.php';
+                ?>
+            </div>
+            <div>
+                <label class="small" for="blog-og-image">OG image</label>
+                <?php
+                    $mediaInputId = 'blog-og-image';
+                    $mediaInputName = 'og_image';
+                    $mediaInputValue = (string)($blogFormData['og_image'] ?? '');
+                    $mediaInputPlaceholder = 'OG image URL';
+                    $mediaInputStyle = 'width:100%;';
+                    $mediaInputDisabled = false;
+                    require __DIR__ . '/../partials/media-input.view.php';
+
+                    $imagePreviewWrapId = 'blog-og-image-preview-wrap';
+                    $imagePreviewInputId = 'blog-og-image';
+                    $imagePreviewImgId = 'blog-og-image-preview';
+                    $imagePreviewAlt = 'OG image preview';
+                    require __DIR__ . '/../partials/image-preview.view.php';
+                ?>
+            </div>
         </div>
 
         <div class="row" style="margin-bottom:10px;">
@@ -45,15 +79,15 @@ $previewLink = !empty($createdPreviewToken) ? (BASE_URL . '/blog/preview/' . $cr
         </div>
 
         <div style="margin-bottom:10px;">
-            <textarea name="intro" rows="2" style="width:100%;" placeholder="Intro / samenvatting"><?php echo htmlspecialchars($blogFormData['intro'] ?? ''); ?></textarea>
+            <textarea class="js-wysiwyg" name="intro" rows="2" style="width:100%;" placeholder="Intro / samenvatting"><?php echo htmlspecialchars($blogFormData['intro'] ?? ''); ?></textarea>
         </div>
 
         <div style="margin-bottom:10px;">
-            <textarea name="excerpt" rows="3" style="width:100%;" placeholder="Korte samenvatting"><?php echo htmlspecialchars($blogFormData['excerpt'] ?? ''); ?></textarea>
+            <textarea class="js-wysiwyg" name="excerpt" rows="3" style="width:100%;" placeholder="Korte samenvatting"><?php echo htmlspecialchars($blogFormData['excerpt'] ?? ''); ?></textarea>
         </div>
 
         <div style="margin-bottom:10px;">
-            <textarea name="content" rows="14" style="width:100%;" placeholder="Content"><?php echo htmlspecialchars($blogFormData['content'] ?? ''); ?></textarea>
+            <textarea class="js-wysiwyg" name="content" rows="14" style="width:100%;" placeholder="Content"><?php echo htmlspecialchars($blogFormData['content'] ?? ''); ?></textarea>
         </div>
 
         <div class="row" style="justify-content:flex-end;">
@@ -141,9 +175,35 @@ $previewLink = !empty($createdPreviewToken) ? (BASE_URL . '/blog/preview/' . $cr
         var statusEl = document.getElementById('autosave-status');
         var idInput = form.querySelector('input[name="id"]');
 
+        function initEditorBindings() {
+            if (!window.FundamentalEditor) {
+                return false;
+            }
+            form.querySelectorAll('.js-wysiwyg').forEach(function (textarea) {
+                window.FundamentalEditor.initWysiwyg(textarea);
+            });
+            form.querySelectorAll('.js-open-media').forEach(function (button) {
+                window.FundamentalEditor.bindMediaButton(button);
+            });
+            form.querySelectorAll('.js-image-preview').forEach(function (previewWrap) {
+                window.FundamentalEditor.bindImagePreview(previewWrap);
+            });
+            form.addEventListener('submit', function () {
+                window.FundamentalEditor.syncForm(form);
+            });
+            return true;
+        }
+
+        if (!initEditorBindings()) {
+            document.addEventListener('DOMContentLoaded', initEditorBindings, { once: true });
+        }
+
         if (!idInput || !idInput.value) return;
 
         function runAutosave() {
+            if (window.FundamentalEditor) {
+                window.FundamentalEditor.syncForm(form);
+            }
             var data = new FormData(form);
             data.set('action', 'blog_autosave');
 

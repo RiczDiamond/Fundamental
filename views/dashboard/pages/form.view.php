@@ -60,36 +60,11 @@ $formAction = $isEditMode
         font-size: 12px;
         color: #50575e;
     }
-    .classic-editor {
-        border: 1px solid #8c8f94;
-        border-radius: 6px;
-        background: #fff;
-        overflow: hidden;
-    }
-    .classic-editor-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-        padding: 8px;
-        background: #f0f0f1;
-        border-bottom: 1px solid #dcdcde;
-    }
-    .classic-editor-tabs,
-    .classic-editor-tools {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .classic-editor button {
-        padding: 6px 10px;
-        min-width: auto;
-    }
     #page-content-editor {
         width: 100%;
         min-height: 300px;
-        border: 0;
-        border-radius: 0;
+        border: 1px solid #8c8f94;
+        border-radius: 6px;
         padding: 12px;
         resize: vertical;
         line-height: 1.5;
@@ -191,32 +166,16 @@ $formAction = $isEditMode
             <h3>Inhoud</h3>
             <div class="page-editor-field" style="margin-bottom:10px;">
                 <label for="page-excerpt">Korte intro / excerpt</label>
-                <textarea id="page-excerpt" name="excerpt" rows="2"><?php echo htmlspecialchars($editPageData['excerpt'] ?? ''); ?></textarea>
+                <textarea class="js-wysiwyg" id="page-excerpt" name="excerpt" rows="2"><?php echo htmlspecialchars($editPageData['excerpt'] ?? ''); ?></textarea>
             </div>
 
-            <div class="classic-editor">
-                <div class="classic-editor-head">
-                    <div class="classic-editor-tabs">
-                        <button type="button" class="secondary" data-mode="visual">Visual</button>
-                        <button type="button" class="secondary" data-mode="html">HTML</button>
-                    </div>
-                    <div class="classic-editor-tools" id="classic-editor-toolbar">
-                        <button type="button" class="secondary" data-wrap="<strong>|</strong>" title="Bold"><strong>B</strong></button>
-                        <button type="button" class="secondary" data-wrap="<em>|</em>" title="Italic"><em>I</em></button>
-                        <button type="button" class="secondary" data-wrap="<h2>|</h2>" title="Heading">H2</button>
-                        <button type="button" class="secondary" data-wrap="<p>|</p>" title="Paragraaf">P</button>
-                        <button type="button" class="secondary" data-wrap="<ul>\n<li>|</li>\n</ul>" title="Lijst">Lijst</button>
-                        <button type="button" class="secondary" data-link="1" title="Link">Link</button>
-                    </div>
-                </div>
-
-                <textarea
-                    id="page-content-editor"
-                    name="content"
-                    rows="16"
-                    placeholder="Pagina content"
-                ><?php echo htmlspecialchars($editPageData['content'] ?? ''); ?></textarea>
-            </div>
+            <textarea
+                class="js-wysiwyg"
+                id="page-content-editor"
+                name="content"
+                rows="16"
+                placeholder="Pagina content"
+            ><?php echo htmlspecialchars($editPageData['content'] ?? ''); ?></textarea>
         </section>
 
         <section class="section">
@@ -244,10 +203,9 @@ $formAction = $isEditMode
     (function () {
         var pageTypeSelect = document.getElementById('page-type-select');
         var templateSelect = document.getElementById('page-template-select');
-        var editor = document.getElementById('page-content-editor');
-        var toolbar = document.getElementById('classic-editor-toolbar');
+        var form = document.getElementById('page-editor-form');
 
-        if (!pageTypeSelect || !templateSelect) {
+        if (!pageTypeSelect || !templateSelect || !form) {
             return;
         }
 
@@ -263,79 +221,21 @@ $formAction = $isEditMode
             templateSelect.value = 'default';
         });
 
-        if (!editor || !toolbar) {
-            return;
-        }
-
-        function setMode(mode) {
-            var visualBtn = document.querySelector('[data-mode="visual"]');
-            var htmlBtn = document.querySelector('[data-mode="html"]');
-
-            if (mode === 'visual') {
-                editor.style.fontFamily = 'Arial, sans-serif';
-                editor.style.background = '#ffffff';
-                if (visualBtn) {
-                    visualBtn.style.background = '#1f2937';
-                    visualBtn.style.color = '#ffffff';
-                }
-                if (htmlBtn) {
-                    htmlBtn.style.background = '#ffffff';
-                    htmlBtn.style.color = '#111827';
-                }
-            } else {
-                editor.style.fontFamily = 'Consolas, monospace';
-                editor.style.background = '#f9fafb';
-                if (htmlBtn) {
-                    htmlBtn.style.background = '#1f2937';
-                    htmlBtn.style.color = '#ffffff';
-                }
-                if (visualBtn) {
-                    visualBtn.style.background = '#ffffff';
-                    visualBtn.style.color = '#111827';
-                }
+        function initEditorBindings() {
+            if (!window.FundamentalEditor) {
+                return false;
             }
+            form.querySelectorAll('.js-wysiwyg').forEach(function (textarea) {
+                window.FundamentalEditor.initWysiwyg(textarea);
+            });
+            form.addEventListener('submit', function () {
+                window.FundamentalEditor.syncForm(form);
+            });
+            return true;
         }
 
-        function wrapSelection(before, after) {
-            var start = editor.selectionStart || 0;
-            var end = editor.selectionEnd || 0;
-            var value = editor.value || '';
-            var selected = value.slice(start, end);
-            var replacement = before + selected + after;
-
-            editor.value = value.slice(0, start) + replacement + value.slice(end);
-            editor.focus();
-
-            var caret = start + replacement.length;
-            editor.setSelectionRange(caret, caret);
+        if (!initEditorBindings()) {
+            document.addEventListener('DOMContentLoaded', initEditorBindings, { once: true });
         }
-
-        document.querySelectorAll('[data-mode]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                setMode(button.getAttribute('data-mode') || 'html');
-            });
-        });
-
-        toolbar.querySelectorAll('[data-wrap]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var tpl = String(button.getAttribute('data-wrap') || '');
-                var parts = tpl.split('|');
-                var before = parts[0] || '';
-                var after = parts[1] || '';
-                wrapSelection(before, after);
-            });
-        });
-
-        toolbar.querySelectorAll('[data-link]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var url = window.prompt('URL (bijv. /contact of https://...)', '/');
-                if (!url) {
-                    return;
-                }
-                wrapSelection('<a href="' + String(url).replace(/"/g, '&quot;') + '">', '</a>');
-            });
-        });
-
-        setMode('visual');
     })();
 </script>

@@ -22,6 +22,163 @@
     $contentTypeRegistry = new ContentTypeRegistry();
     $contentItemModel = new ContentItem($link);
     $contentModel = new Content($link);
+    $sanitizerService = class_exists('App\\Services\\SanitizerService') ? new App\Services\SanitizerService() : null;
+    $validationService = class_exists('App\\Services\\ValidationService') ? new App\Services\ValidationService() : null;
+    $actionLogger = class_exists('App\\Services\\ActionLoggerService') ? new App\Services\ActionLoggerService(dirname(__DIR__)) : null;
+
+    $sanitizeText = static function ($value) use ($sanitizerService) {
+        if ($sanitizerService) {
+            return $sanitizerService->sanitizeText($value);
+        }
+        return trim((string)$value);
+    };
+
+    $sanitizeHtml = static function ($value) use ($sanitizerService, $sanitizeText) {
+        if ($sanitizerService) {
+            return $sanitizerService->sanitizeHtml($value);
+        }
+        return $sanitizeText($value);
+    };
+
+    $sanitizeUrl = static function ($value) use ($sanitizerService, $sanitizeText) {
+        if ($sanitizerService) {
+            return $sanitizerService->sanitizeUrl($value);
+        }
+        return $sanitizeText($value);
+    };
+
+    $deleteCacheKeys = static function (array $keys) use (&$appCache): void {
+        if (!isset($appCache) || !$appCache instanceof \Symfony\Component\Cache\Adapter\FilesystemAdapter) {
+            return;
+        }
+
+        foreach ($keys as $cacheKey) {
+            $cacheKey = trim((string)$cacheKey);
+            if ($cacheKey === '') {
+                continue;
+            }
+            $appCache->deleteItem($cacheKey);
+        }
+    };
+
+    $dashboardLockFactory = null;
+    if (class_exists('Symfony\\Component\\Lock\\LockFactory') && class_exists('Symfony\\Component\\Lock\\Store\\FlockStore')) {
+        $lockDirectory = dirname(__DIR__) . '/storage/locks';
+        if (!is_dir($lockDirectory)) {
+            @mkdir($lockDirectory, 0775, true);
+        }
+        $dashboardLockFactory = new \Symfony\Component\Lock\LockFactory(
+            new \Symfony\Component\Lock\Store\FlockStore($lockDirectory)
+        );
+    }
+
+    $actionRateLimiters = [];
+    if (
+        isset($appCache)
+        && $appCache instanceof \Symfony\Component\Cache\Adapter\FilesystemAdapter
+        && class_exists('Symfony\\Component\\RateLimiter\\RateLimiterFactory')
+        && class_exists('Symfony\\Component\\RateLimiter\\Storage\\CacheStorage')
+    ) {
+        $limiterStorage = new \Symfony\Component\RateLimiter\Storage\CacheStorage($appCache);
+        $actionRateLimiters['media_upload'] = new \Symfony\Component\RateLimiter\RateLimiterFactory([
+            'id' => 'dashboard_media_upload',
+            'policy' => 'sliding_window',
+            'limit' => 30,
+            'interval' => '10 minutes',
+        ], $limiterStorage);
+
+        $actionRateLimiters['blog_preview_token'] = new \Symfony\Component\RateLimiter\RateLimiterFactory([
+            'id' => 'dashboard_preview_token',
+            'policy' => 'sliding_window',
+            'limit' => 25,
+            'interval' => '1 hour',
+        ], $limiterStorage);
+    }
+
+    $consumeActionRateLimit = static function (string $action, int $userId) use ($actionRateLimiters): array {
+        if (!isset($actionRateLimiters[$action])) {
+            return [true, 0];
+        }
+
+        $clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $limiter = $actionRateLimiters[$action]->create($userId . '|' . $clientIp);
+        $limit = $limiter->consume(1);
+        if ($limit->isAccepted()) {
+            return [true, 0];
+        }
+
+        $retryAfter = $limit->getRetryAfter();
+        $retrySeconds = $retryAfter ? max(1, (int)($retryAfter->getTimestamp() - time())) : 60;
+        return [false, $retrySeconds];
+    };
+
+    $dashboardStopwatch = class_exists('Symfony\\Component\\Stopwatch\\Stopwatch')
+        ? new \Symfony\Component\Stopwatch\Stopwatch(true)
+        : null;
+
+    $blogActionHandler = class_exists('App\\Http\\Controllers\\Dashboard\\BlogActionHandler')
+        ? new \App\Http\Controllers\Dashboard\BlogActionHandler(
+            $blogModel,
+            $canBlogWrite,
+            (int)$currentUserId,
+            $validationService,
+            $actionLogger,
+            $sanitizeText,
+            $sanitizeHtml,
+            $sanitizeUrl,
+            $deleteCacheKeys
+        )
+        : null;
+
+    $pageActionHandler = class_exists('App\\Http\\Controllers\\Dashboard\\PageActionHandler')
+        ? new \App\Http\Controllers\Dashboard\PageActionHandler(
+            $pageModel,
+            $canPagesWrite,
+            (int)$currentUserId,
+            $validationService,
+            $actionLogger,
+            $sanitizeText,
+            $sanitizeHtml,
+            $sanitizeUrl,
+            $deleteCacheKeys
+        )
+        : null;
+
+    $contentActionHandler = class_exists('App\\Http\\Controllers\\Dashboard\\ContentActionHandler')
+        ? new \App\Http\Controllers\Dashboard\ContentActionHandler(
+            $contentItemModel,
+            $contentTypeRegistry,
+            $canPagesWrite,
+            (int)$currentUserId,
+            $validationService,
+            $actionLogger,
+            $sanitizeText,
+            $sanitizeHtml,
+            $sanitizeUrl,
+            $deleteCacheKeys
+        )
+        : null;
+
+    $measureDashboardBlock = static function (string $name, callable $callback) use ($dashboardStopwatch, $actionLogger, $currentUserId) {
+        if (!$dashboardStopwatch) {
+            return $callback();
+        }
+
+        $dashboardStopwatch->start($name);
+        try {
+            return $callback();
+        } finally {
+            $event = $dashboardStopwatch->stop($name);
+            if ($actionLogger && $event->getDuration() >= 200) {
+                $actionLogger->info('Dashboard slow query block', [
+                    'user_id' => $currentUserId,
+                    'block' => $name,
+                    'duration_ms' => $event->getDuration(),
+                    'memory_bytes' => $event->getMemory(),
+                ]);
+            }
+        }
+    };
 
     if (!$canDashboard) {
         http_response_code(403);
@@ -68,10 +225,59 @@
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postedCsrf = $_POST['csrf'] ?? '';
-        if (!hash_equals((string)$csrfToken, (string)$postedCsrf)) {
+        $csrfValid = false;
+        if (isset($csrfTokenManager) && $csrfTokenManager instanceof \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface) {
+            $csrfValid = $csrfTokenManager->isTokenValid(new \Symfony\Component\Security\Csrf\CsrfToken('fundamental_form', (string)$postedCsrf));
+        } else {
+            $csrfValid = hash_equals((string)$csrfToken, (string)$postedCsrf);
+        }
+
+        if (!$csrfValid) {
             $errors[] = 'Ongeldige aanvraag (CSRF).';
         } else {
             $action = $_POST['action'] ?? '';
+            $activeActionLock = null;
+
+            $resolveActionLockKey = static function (string $actionName): ?string {
+                $id = (int)($_POST['id'] ?? 0);
+                return match ($actionName) {
+                    'blog_create' => 'blog:create',
+                    'blog_update' => 'blog:update:' . max(0, $id),
+                    'blog_delete' => 'blog:delete:' . max(0, $id),
+                    'blog_duplicate' => 'blog:duplicate:' . max(0, $id),
+                    'blog_bulk' => 'blog:bulk',
+                    'blog_restore_revision' => 'blog:restore:' . (int)($_POST['revision_id'] ?? 0),
+                    'page_create' => 'page:create',
+                    'page_update' => 'page:update:' . max(0, $id),
+                    'page_delete' => 'page:delete:' . max(0, $id),
+                    'content_create' => 'content:create:' . trim((string)($_POST['content_type'] ?? 'unknown')),
+                    'content_update' => 'content:update:' . max(0, $id),
+                    'content_delete' => 'content:delete:' . max(0, $id),
+                    'menu_save' => 'menu:save:' . max(0, $id),
+                    'menu_reorder_tree' => 'menu:reorder:main',
+                    'menu_delete' => 'menu:delete:' . max(0, $id),
+                    'media_folder_create' => 'media:folder:create',
+                    'media_update' => 'media:update:' . max(0, $id),
+                    default => null,
+                };
+            };
+
+            $lockKey = $resolveActionLockKey($action);
+            if ($lockKey !== null && $dashboardLockFactory instanceof \Symfony\Component\Lock\LockFactory) {
+                $activeActionLock = $dashboardLockFactory->createLock('dashboard:' . $lockKey, 20.0, false);
+                if (!$activeActionLock->acquire()) {
+                    $errors[] = 'Deze actie wordt al uitgevoerd. Probeer het over een paar seconden opnieuw.';
+                    $action = '';
+                }
+            }
+
+            if ($action === 'media_upload' || $action === 'blog_preview_token') {
+                [$accepted, $retrySeconds] = $consumeActionRateLimit($action, (int)$currentUserId);
+                if (!$accepted) {
+                    $errors[] = 'Te veel verzoeken voor deze actie. Probeer opnieuw over ' . $retrySeconds . ' seconden.';
+                    $action = '';
+                }
+            }
 
             if ($action === 'profile_update') {
                 $gender = trim($_POST['gender'] ?? '');
@@ -116,225 +322,19 @@
                 }
             }
 
-            if ($action === 'blog_create') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $created = $blogModel->create([
-                        'title' => trim($_POST['title'] ?? ''),
-                        'slug' => trim($_POST['slug'] ?? ''),
-                        'featured_image' => trim($_POST['featured_image'] ?? ''),
-                        'intro' => trim($_POST['intro'] ?? ''),
-                        'category' => trim($_POST['category'] ?? ''),
-                        'tags' => trim($_POST['tags'] ?? ''),
-                        'meta_title' => trim($_POST['meta_title'] ?? ''),
-                        'meta_description' => trim($_POST['meta_description'] ?? ''),
-                        'og_image' => trim($_POST['og_image'] ?? ''),
-                        'excerpt' => trim($_POST['excerpt'] ?? ''),
-                        'content' => trim($_POST['content'] ?? ''),
-                        'status' => trim($_POST['status'] ?? 'draft'),
-                        'scheduled_at' => trim($_POST['scheduled_at'] ?? ''),
-                    ], $currentUserId);
-
-                    if ($created) {
-                        header('Location: /dashboard/blogs?ok=blog_created');
-                        exit;
-                    }
-
-                    $errors[] = $blogModel->getLastError() ?: 'Blogpost kon niet worden aangemaakt.';
-                }
+            if ($blogActionHandler instanceof \App\Http\Controllers\Dashboard\BlogActionHandler && $blogActionHandler->supports($action)) {
+                $errors = $blogActionHandler->handle($action, $errors);
+                $action = '';
             }
 
-            if ($action === 'blog_update') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $blogId = (int)($_POST['id'] ?? 0);
-                    if ($blogId <= 0) {
-                        $errors[] = 'Ongeldige blogpost.';
-                    } elseif ($blogModel->update($blogId, [
-                        'title' => trim($_POST['title'] ?? ''),
-                        'slug' => trim($_POST['slug'] ?? ''),
-                        'featured_image' => trim($_POST['featured_image'] ?? ''),
-                        'intro' => trim($_POST['intro'] ?? ''),
-                        'category' => trim($_POST['category'] ?? ''),
-                        'tags' => trim($_POST['tags'] ?? ''),
-                        'meta_title' => trim($_POST['meta_title'] ?? ''),
-                        'meta_description' => trim($_POST['meta_description'] ?? ''),
-                        'og_image' => trim($_POST['og_image'] ?? ''),
-                        'excerpt' => trim($_POST['excerpt'] ?? ''),
-                        'content' => trim($_POST['content'] ?? ''),
-                        'status' => trim($_POST['status'] ?? 'draft'),
-                        'scheduled_at' => trim($_POST['scheduled_at'] ?? ''),
-                    ], $currentUserId)) {
-                        header('Location: /dashboard/blogs?ok=blog_updated');
-                        exit;
-                    } else {
-                        $errors[] = $blogModel->getLastError() ?: 'Blogpost kon niet worden bijgewerkt.';
-                    }
-                }
+            if ($pageActionHandler instanceof \App\Http\Controllers\Dashboard\PageActionHandler && $pageActionHandler->supports($action)) {
+                $errors = $pageActionHandler->handle($action, $errors);
+                $action = '';
             }
 
-            if ($action === 'blog_duplicate') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $blogId = (int)($_POST['id'] ?? 0);
-                    if ($blogId <= 0) {
-                        $errors[] = 'Ongeldige blogpost.';
-                    } elseif ($blogModel->duplicate($blogId, $currentUserId)) {
-                        header('Location: /dashboard/blogs?ok=blog_duplicated');
-                        exit;
-                    } else {
-                        $errors[] = 'Concept kon niet worden gedupliceerd.';
-                    }
-                }
-            }
-
-            if ($action === 'blog_bulk') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $bulkAction = trim($_POST['bulk_action'] ?? '');
-                    $selected = $_POST['selected_ids'] ?? [];
-                    $selectedIds = is_array($selected) ? $selected : [];
-
-                    if ($bulkAction === '' || empty($selectedIds)) {
-                        $errors[] = 'Selecteer items en een bulk-actie.';
-                    } else {
-                        $affected = 0;
-                        if ($bulkAction === 'delete') {
-                            $affected = $blogModel->bulkDelete($selectedIds);
-                        } elseif (in_array($bulkAction, ['draft', 'published', 'scheduled', 'archived'], true)) {
-                            $affected = $blogModel->bulkUpdateStatus($selectedIds, $bulkAction, $currentUserId);
-                        }
-
-                        if ($affected > 0) {
-                            header('Location: /dashboard/blogs?ok=blog_bulk_updated');
-                            exit;
-                        }
-
-                        $errors[] = 'Bulk-actie kon niet worden uitgevoerd.';
-                    }
-                }
-            }
-
-            if ($action === 'blog_inline_status') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $blogId = (int)($_POST['id'] ?? 0);
-                    $status = trim($_POST['status'] ?? 'draft');
-                    if ($blogId <= 0) {
-                        $errors[] = 'Ongeldige blogpost.';
-                    } elseif ($blogModel->bulkUpdateStatus([$blogId], $status, $currentUserId) > 0) {
-                        header('Location: /dashboard/blogs?ok=blog_updated');
-                        exit;
-                    } else {
-                        $errors[] = 'Status kon niet inline worden bijgewerkt.';
-                    }
-                }
-            }
-
-            if ($action === 'blog_restore_revision') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $revisionId = (int)($_POST['revision_id'] ?? 0);
-                    $blogId = (int)($_POST['blog_id'] ?? 0);
-                    if ($revisionId <= 0 || $blogId <= 0) {
-                        $errors[] = 'Ongeldige revisie.';
-                    } elseif ($blogModel->restoreRevision($revisionId, $currentUserId)) {
-                        header('Location: /dashboard/blogs/edit/' . $blogId . '?ok=blog_revision_restored');
-                        exit;
-                    } else {
-                        $errors[] = $blogModel->getLastError() ?: 'Revisie kon niet worden teruggezet.';
-                    }
-                }
-            }
-
-            if ($action === 'blog_autosave') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om autosave uit te voeren.';
-                } else {
-                    $blogId = (int)($_POST['id'] ?? 0);
-                    $isAjax = strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
-                    if ($blogId <= 0) {
-                        if ($isAjax) {
-                            header('Content-Type: application/json; charset=utf-8');
-                            http_response_code(400);
-                            echo json_encode(['ok' => false, 'error' => 'Autosave werkt alleen voor bestaande posts.']);
-                            exit;
-                        }
-                        $errors[] = 'Autosave werkt alleen voor bestaande posts.';
-                    } else {
-                        $ok = $blogModel->saveAutosave($blogId, $currentUserId, [
-                            'title' => trim($_POST['title'] ?? ''),
-                            'slug' => trim($_POST['slug'] ?? ''),
-                            'featured_image' => trim($_POST['featured_image'] ?? ''),
-                            'intro' => trim($_POST['intro'] ?? ''),
-                            'category' => trim($_POST['category'] ?? ''),
-                            'tags' => trim($_POST['tags'] ?? ''),
-                            'meta_title' => trim($_POST['meta_title'] ?? ''),
-                            'meta_description' => trim($_POST['meta_description'] ?? ''),
-                            'og_image' => trim($_POST['og_image'] ?? ''),
-                            'excerpt' => trim($_POST['excerpt'] ?? ''),
-                            'content' => trim($_POST['content'] ?? ''),
-                            'status' => trim($_POST['status'] ?? 'draft'),
-                            'scheduled_at' => trim($_POST['scheduled_at'] ?? ''),
-                        ]);
-                        if ($ok) {
-                            if ($isAjax) {
-                                header('Content-Type: application/json; charset=utf-8');
-                                echo json_encode(['ok' => true, 'saved_at' => date('Y-m-d H:i:s')]);
-                                exit;
-                            }
-                            header('Location: /dashboard/blogs/edit/' . $blogId . '?ok=blog_autosaved');
-                            exit;
-                        }
-
-                        if ($isAjax) {
-                            header('Content-Type: application/json; charset=utf-8');
-                            http_response_code(500);
-                            echo json_encode(['ok' => false, 'error' => ($blogModel->getLastError() ?: 'Autosave kon niet worden opgeslagen.')]);
-                            exit;
-                        }
-
-                        $errors[] = $blogModel->getLastError() ?: 'Autosave kon niet worden opgeslagen.';
-                    }
-                }
-            }
-
-            if ($action === 'blog_preview_token') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om preview links te maken.';
-                } else {
-                    $blogId = (int)($_POST['blog_id'] ?? 0);
-                    $role = trim($_POST['required_role'] ?? 'all');
-                    $ttlHours = max(1, min((int)($_POST['ttl_hours'] ?? 24), 168));
-                    $preview = $blogModel->createPreviewToken($blogId, $role, $currentUserId, $ttlHours);
-                    if ($preview) {
-                        header('Location: /dashboard/blogs/edit/' . $blogId . '?ok=blog_preview_created&preview_token=' . urlencode($preview['token']));
-                        exit;
-                    }
-                    $errors[] = 'Preview-link kon niet worden aangemaakt.';
-                }
-            }
-
-            if ($action === 'blog_delete') {
-                if (!$canBlogWrite) {
-                    $errors[] = 'Geen rechten om blogs te beheren.';
-                } else {
-                    $blogId = (int)($_POST['id'] ?? 0);
-                    if ($blogId <= 0) {
-                        $errors[] = 'Ongeldige blogpost.';
-                    } elseif ($blogModel->delete($blogId)) {
-                        header('Location: /dashboard/blogs?ok=blog_deleted');
-                        exit;
-                    } else {
-                        $errors[] = 'Blogpost kon niet worden verwijderd.';
-                    }
-                }
+            if ($contentActionHandler instanceof \App\Http\Controllers\Dashboard\ContentActionHandler && $contentActionHandler->supports($action)) {
+                $errors = $contentActionHandler->handle($action, $errors);
+                $action = '';
             }
 
             if ($action === 'user_update') {
@@ -448,6 +448,7 @@
                     );
 
                     if ($created) {
+                        $deleteCacheKeys(['sitemap.xml.public']);
                         header('Location: /dashboard/media?ok=media_folder_created');
                         exit;
                     }
@@ -456,11 +457,25 @@
             }
 
             if ($action === 'media_upload') {
+                $isAjax = strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
                 if (!$canPagesWrite) {
+                    if ($isAjax) {
+                        header('Content-Type: application/json; charset=utf-8');
+                        http_response_code(403);
+                        echo json_encode(['ok' => false, 'error' => 'Geen rechten om media te uploaden.']);
+                        exit;
+                    }
                     $errors[] = 'Geen rechten om media te uploaden.';
                 } else {
                     $file = $_FILES['media_file'] ?? null;
                     if (!$file) {
+                        if ($isAjax) {
+                            header('Content-Type: application/json; charset=utf-8');
+                            http_response_code(400);
+                            echo json_encode(['ok' => false, 'error' => 'Geen bestand geüpload.']);
+                            exit;
+                        }
                         $errors[] = 'Geen bestand geüpload.';
                     } else {
                         $uploaded = $contentModel->uploadMedia(
@@ -471,10 +486,32 @@
                         );
 
                         if ($uploaded) {
+                            if ($isAjax) {
+                                $uploadedItem = $contentModel->getMediaItemById((int)$uploaded);
+                                header('Content-Type: application/json; charset=utf-8');
+                                echo json_encode([
+                                    'ok' => true,
+                                    'item' => [
+                                        'id' => (int)($uploadedItem['id'] ?? $uploaded),
+                                        'filename' => (string)($uploadedItem['filename'] ?? ($file['name'] ?? 'Bestand')),
+                                        'path' => (string)($uploadedItem['path'] ?? ''),
+                                        'alt_text' => (string)($uploadedItem['alt_text'] ?? ''),
+                                        'mime_type' => (string)($uploadedItem['mime_type'] ?? ($file['type'] ?? '')),
+                                    ],
+                                ]);
+                                exit;
+                            }
                             header('Location: /dashboard/media?ok=media_uploaded');
                             exit;
                         }
-                        $errors[] = $contentModel->getLastError() ?: 'Upload mislukt.';
+                        $errorMessage = $contentModel->getLastError() ?: 'Upload mislukt.';
+                        if ($isAjax) {
+                            header('Content-Type: application/json; charset=utf-8');
+                            http_response_code(500);
+                            echo json_encode(['ok' => false, 'error' => $errorMessage]);
+                            exit;
+                        }
+                        $errors[] = $errorMessage;
                     }
                 }
             }
@@ -540,6 +577,7 @@
                     ], $currentUserId);
 
                     if ($saved) {
+                        $deleteCacheKeys(['navigation.main.tree', 'sitemap.xml.public']);
                         header('Location: /dashboard/pages?ok=menu_saved');
                         exit;
                     }
@@ -556,6 +594,7 @@
                     if (!is_array($tree)) {
                         $errors[] = 'Ongeldige menu-volgorde payload.';
                     } elseif ($contentModel->reorderMenuTree('main', $tree, $currentUserId)) {
+                        $deleteCacheKeys(['navigation.main.tree', 'sitemap.xml.public']);
                         header('Location: /dashboard/pages?ok=menu_reordered');
                         exit;
                     } else {
@@ -572,6 +611,7 @@
                     if ($menuId <= 0) {
                         $errors[] = 'Ongeldig menu-item.';
                     } elseif ($contentModel->deleteMenuItem($menuId)) {
+                        $deleteCacheKeys(['navigation.main.tree', 'sitemap.xml.public']);
                         header('Location: /dashboard/pages?ok=menu_deleted');
                         exit;
                     } else {
@@ -580,210 +620,8 @@
                 }
             }
 
-            if ($action === 'page_create') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om pagina\'s te beheren.';
-                } else {
-                    $created = $pageModel->create([
-                        'title' => trim($_POST['title'] ?? ''),
-                        'slug' => trim($_POST['slug'] ?? ''),
-                        'template' => trim($_POST['template'] ?? 'default'),
-                        'page_type' => trim($_POST['page_type'] ?? 'basic_page'),
-                        'template_payload_json' => json_encode([
-                            'hero' => [
-                                'title' => trim($_POST['hero_title'] ?? ''),
-                                'subtitle' => trim($_POST['hero_subtitle'] ?? ''),
-                                'cta_label' => trim($_POST['hero_cta_label'] ?? ''),
-                                'cta_url' => trim($_POST['hero_cta_url'] ?? ''),
-                            ],
-                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                        'excerpt' => trim($_POST['excerpt'] ?? ''),
-                        'content' => trim($_POST['content'] ?? ''),
-                        'meta_title' => trim($_POST['meta_title'] ?? ''),
-                        'meta_description' => trim($_POST['meta_description'] ?? ''),
-                        'status' => trim($_POST['status'] ?? 'draft'),
-                        'published_at' => trim($_POST['published_at'] ?? ''),
-                    ], $currentUserId);
-
-                    if ($created) {
-                        header('Location: /dashboard/pages?ok=page_created');
-                        exit;
-                    }
-
-                    $errors[] = $pageModel->getLastError() ?: 'Pagina kon niet worden aangemaakt.';
-                }
-            }
-
-            if ($action === 'page_update') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om pagina\'s te beheren.';
-                } else {
-                    $pageId = (int)($_POST['id'] ?? 0);
-                    if ($pageId <= 0) {
-                        $errors[] = 'Ongeldige pagina.';
-                    } elseif ($pageModel->update($pageId, [
-                        'title' => trim($_POST['title'] ?? ''),
-                        'slug' => trim($_POST['slug'] ?? ''),
-                        'template' => trim($_POST['template'] ?? 'default'),
-                        'page_type' => trim($_POST['page_type'] ?? 'basic_page'),
-                        'template_payload_json' => json_encode([
-                            'hero' => [
-                                'title' => trim($_POST['hero_title'] ?? ''),
-                                'subtitle' => trim($_POST['hero_subtitle'] ?? ''),
-                                'cta_label' => trim($_POST['hero_cta_label'] ?? ''),
-                                'cta_url' => trim($_POST['hero_cta_url'] ?? ''),
-                            ],
-                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                        'excerpt' => trim($_POST['excerpt'] ?? ''),
-                        'content' => trim($_POST['content'] ?? ''),
-                        'meta_title' => trim($_POST['meta_title'] ?? ''),
-                        'meta_description' => trim($_POST['meta_description'] ?? ''),
-                        'status' => trim($_POST['status'] ?? 'draft'),
-                        'published_at' => trim($_POST['published_at'] ?? ''),
-                    ], $currentUserId)) {
-                        header('Location: /dashboard/pages?ok=page_updated');
-                        exit;
-                    } else {
-                        $errors[] = $pageModel->getLastError() ?: 'Pagina kon niet worden bijgewerkt.';
-                    }
-                }
-            }
-
-            if ($action === 'page_delete') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om pagina\'s te beheren.';
-                } else {
-                    $pageId = (int)($_POST['id'] ?? 0);
-                    if ($pageId <= 0) {
-                        $errors[] = 'Ongeldige pagina.';
-                    } elseif ($pageModel->delete($pageId)) {
-                        header('Location: /dashboard/pages?ok=page_deleted');
-                        exit;
-                    } else {
-                        $errors[] = $pageModel->getLastError() ?: 'Pagina kon niet worden verwijderd.';
-                    }
-                }
-            }
-
-            if ($action === 'content_create') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om content te beheren.';
-                } else {
-                    $contentType = trim((string)($_POST['content_type'] ?? ''));
-                    $typeDefinition = $contentTypeRegistry->getByKey($contentType);
-
-                    if (!$typeDefinition) {
-                        $errors[] = 'Onbekend content type.';
-                    } else {
-                        $payload = [];
-                        $fields = isset($typeDefinition['fields']) && is_array($typeDefinition['fields'])
-                            ? $typeDefinition['fields']
-                            : [];
-                        foreach ($fields as $field) {
-                            $fieldName = trim((string)($field['name'] ?? ''));
-                            if ($fieldName === '') {
-                                continue;
-                            }
-                            $payload[$fieldName] = trim((string)($_POST['payload_' . $fieldName] ?? ''));
-                        }
-
-                        $created = $contentItemModel->create([
-                            'type' => $contentType,
-                            'title' => trim((string)($_POST['title'] ?? '')),
-                            'slug' => trim((string)($_POST['slug'] ?? '')),
-                            'excerpt' => trim((string)($_POST['excerpt'] ?? '')),
-                            'content' => trim((string)($_POST['content'] ?? '')),
-                            'featured_image' => trim((string)($_POST['featured_image'] ?? '')),
-                            'meta_title' => trim((string)($_POST['meta_title'] ?? '')),
-                            'meta_description' => trim((string)($_POST['meta_description'] ?? '')),
-                            'status' => trim((string)($_POST['status'] ?? 'draft')),
-                            'published_at' => trim((string)($_POST['published_at'] ?? '')),
-                            'starts_at' => trim((string)($_POST['starts_at'] ?? '')),
-                            'ends_at' => trim((string)($_POST['ends_at'] ?? '')),
-                            'payload_json' => $payload,
-                        ], $currentUserId);
-
-                        if ($created) {
-                            $redirectSlug = (string)($typeDefinition['slug'] ?? $contentType);
-                            header('Location: /dashboard/content/' . rawurlencode($redirectSlug) . '?ok=content_created');
-                            exit;
-                        }
-
-                        $errors[] = $contentItemModel->getLastError() ?: 'Content item kon niet worden aangemaakt.';
-                    }
-                }
-            }
-
-            if ($action === 'content_update') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om content te beheren.';
-                } else {
-                    $itemId = (int)($_POST['id'] ?? 0);
-                    $contentType = trim((string)($_POST['content_type'] ?? ''));
-                    $typeDefinition = $contentTypeRegistry->getByKey($contentType);
-
-                    if ($itemId <= 0) {
-                        $errors[] = 'Ongeldig content item.';
-                    } elseif (!$typeDefinition) {
-                        $errors[] = 'Onbekend content type.';
-                    } else {
-                        $payload = [];
-                        $fields = isset($typeDefinition['fields']) && is_array($typeDefinition['fields'])
-                            ? $typeDefinition['fields']
-                            : [];
-                        foreach ($fields as $field) {
-                            $fieldName = trim((string)($field['name'] ?? ''));
-                            if ($fieldName === '') {
-                                continue;
-                            }
-                            $payload[$fieldName] = trim((string)($_POST['payload_' . $fieldName] ?? ''));
-                        }
-
-                        $updated = $contentItemModel->update($itemId, [
-                            'type' => $contentType,
-                            'title' => trim((string)($_POST['title'] ?? '')),
-                            'slug' => trim((string)($_POST['slug'] ?? '')),
-                            'excerpt' => trim((string)($_POST['excerpt'] ?? '')),
-                            'content' => trim((string)($_POST['content'] ?? '')),
-                            'featured_image' => trim((string)($_POST['featured_image'] ?? '')),
-                            'meta_title' => trim((string)($_POST['meta_title'] ?? '')),
-                            'meta_description' => trim((string)($_POST['meta_description'] ?? '')),
-                            'status' => trim((string)($_POST['status'] ?? 'draft')),
-                            'published_at' => trim((string)($_POST['published_at'] ?? '')),
-                            'starts_at' => trim((string)($_POST['starts_at'] ?? '')),
-                            'ends_at' => trim((string)($_POST['ends_at'] ?? '')),
-                            'payload_json' => $payload,
-                        ], $currentUserId);
-
-                        if ($updated) {
-                            $redirectSlug = (string)($typeDefinition['slug'] ?? $contentType);
-                            header('Location: /dashboard/content/' . rawurlencode($redirectSlug) . '?ok=content_updated');
-                            exit;
-                        }
-
-                        $errors[] = $contentItemModel->getLastError() ?: 'Content item kon niet worden bijgewerkt.';
-                    }
-                }
-            }
-
-            if ($action === 'content_delete') {
-                if (!$canPagesWrite) {
-                    $errors[] = 'Geen rechten om content te beheren.';
-                } else {
-                    $itemId = (int)($_POST['id'] ?? 0);
-                    $contentType = trim((string)($_POST['content_type'] ?? ''));
-                    $typeDefinition = $contentTypeRegistry->getByKey($contentType);
-
-                    if ($itemId <= 0) {
-                        $errors[] = 'Ongeldig content item.';
-                    } elseif ($contentItemModel->delete($itemId)) {
-                        $redirectSlug = (string)($typeDefinition['slug'] ?? 'services');
-                        header('Location: /dashboard/content/' . rawurlencode($redirectSlug) . '?ok=content_deleted');
-                        exit;
-                    } else {
-                        $errors[] = $contentItemModel->getLastError() ?: 'Content item kon niet worden verwijderd.';
-                    }
-                }
+            if (is_object($activeActionLock) && method_exists($activeActionLock, 'release')) {
+                $activeActionLock->release();
             }
         }
     }
@@ -803,22 +641,30 @@
     $mediaPage = max(1, (int)($_GET['media_page'] ?? 1));
     $mediaPerPage = max(6, min((int)($_GET['media_per_page'] ?? 12), 60));
 
-    $users = ($usersSearch !== '') ? $account->get_all($usersSearch) : $account->get_all();
-    $blogList = $blogModel->listAllAdvanced([
-        'search' => $blogSearch,
-        'status' => $blogStatusFilter,
-        'category' => $blogCategoryFilter,
-        'sort' => $blogSort,
-        'page' => $blogPage,
-        'per_page' => $blogPerPage,
-    ]);
+    $users = $measureDashboardBlock('dashboard.users.list', static function () use ($account, $usersSearch) {
+        return ($usersSearch !== '') ? $account->get_all($usersSearch) : $account->get_all();
+    });
+    $blogList = $measureDashboardBlock('dashboard.blogs.list', static function () use ($blogModel, $blogSearch, $blogStatusFilter, $blogCategoryFilter, $blogSort, $blogPage, $blogPerPage) {
+        return $blogModel->listAllAdvanced([
+            'search' => $blogSearch,
+            'status' => $blogStatusFilter,
+            'category' => $blogCategoryFilter,
+            'sort' => $blogSort,
+            'page' => $blogPage,
+            'per_page' => $blogPerPage,
+        ]);
+    });
     $blogPosts = $blogList['items'];
     $blogPagesTotal = $blogList['pages'];
     $blogTotalItems = $blogList['total'];
     $blogCategories = $blogModel->getDistinctCategories(200);
 
-    $mediaFolders = $contentModel->listMediaFolders();
-    $mediaList = $contentModel->listMediaItems($mediaSearch, $mediaFolderFilter, $mediaPage, $mediaPerPage, $mediaSort);
+    $mediaFolders = $measureDashboardBlock('dashboard.media.folders', static function () use ($contentModel) {
+        return $contentModel->listMediaFolders();
+    });
+    $mediaList = $measureDashboardBlock('dashboard.media.list', static function () use ($contentModel, $mediaSearch, $mediaFolderFilter, $mediaPage, $mediaPerPage, $mediaSort) {
+        return $contentModel->listMediaItems($mediaSearch, $mediaFolderFilter, $mediaPage, $mediaPerPage, $mediaSort);
+    });
     $mediaItems = $mediaList['items'];
     $mediaPagesTotal = $mediaList['pages'];
     $mediaTotalItems = $mediaList['total'];
@@ -829,7 +675,9 @@
     $pageStatus = trim($_GET['page_status'] ?? '');
     $pagePageNumber = max(1, (int)($_GET['page_page'] ?? 1));
     $pagePerPage = max(5, min((int)($_GET['page_per_page'] ?? 10), 50));
-    $pagesList = $pageModel->listAll($pageSearch, $pageStatus, $pagePageNumber, $pagePerPage);
+    $pagesList = $measureDashboardBlock('dashboard.pages.list', static function () use ($pageModel, $pageSearch, $pageStatus, $pagePageNumber, $pagePerPage) {
+        return $pageModel->listAll($pageSearch, $pageStatus, $pagePageNumber, $pagePerPage);
+    });
     $managedPages = $pagesList['items'];
     $managedPagesTotal = $pagesList['total'];
     $managedPagesPagesTotal = $pagesList['pages'];
@@ -871,13 +719,15 @@
     $contentManagedPage = max(1, (int)($_GET['content_page'] ?? 1));
     $contentManagedPerPage = max(5, min((int)($_GET['content_per_page'] ?? 10), 50));
 
-    $contentManagedList = $contentItemModel->listAll(
-        $contentSelectedTypeKey,
-        $contentSearch,
-        $contentStatus,
-        $contentManagedPage,
-        $contentManagedPerPage
-    );
+    $contentManagedList = $measureDashboardBlock('dashboard.content.list', static function () use ($contentItemModel, $contentSelectedTypeKey, $contentSearch, $contentStatus, $contentManagedPage, $contentManagedPerPage) {
+        return $contentItemModel->listAll(
+            $contentSelectedTypeKey,
+            $contentSearch,
+            $contentStatus,
+            $contentManagedPage,
+            $contentManagedPerPage
+        );
+    });
 
     $contentManagedItems = $contentManagedList['items'];
     $contentManagedTotal = $contentManagedList['total'];
@@ -976,6 +826,17 @@
     ];
 
     $activePageTitle = $pageTitles[$page] ?? 'Dashboard';
+
+    $dashboardEditorMediaItems = [];
+    foreach (($mediaItems ?? []) as $mediaRow) {
+        $dashboardEditorMediaItems[] = [
+            'id' => (int)($mediaRow['id'] ?? 0),
+            'filename' => (string)($mediaRow['filename'] ?? ''),
+            'path' => (string)($mediaRow['path'] ?? ''),
+            'alt_text' => (string)($mediaRow['alt_text'] ?? ''),
+            'mime_type' => (string)($mediaRow['mime_type'] ?? ''),
+        ];
+    }
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -1098,6 +959,109 @@
         .badge.banned { background: #fee2e2; color: #991b1b; }
         .two-col { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
         .small { font-size: 12px; color: #646970; }
+        .editor-media-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        .editor-media-modal.is-open { display: flex; }
+        .editor-media-panel {
+            width: min(980px, 100%);
+            max-height: 84vh;
+            overflow: auto;
+            background: #fff;
+            border: 1px solid #dcdcde;
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .editor-media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .editor-media-upload {
+            margin-top: 10px;
+            border: 1px solid #dcdcde;
+            border-radius: 6px;
+            padding: 10px;
+            background: #f6f7f7;
+            display: grid;
+            gap: 8px;
+        }
+        .editor-media-upload-status {
+            font-size: 12px;
+            min-height: 18px;
+            color: #646970;
+        }
+        .editor-media-upload-status.is-error { color: #b32d2e; }
+        .editor-media-upload-status.is-ok { color: #166534; }
+        .editor-media-card {
+            border: 1px solid #dcdcde;
+            border-radius: 6px;
+            padding: 10px;
+            background: #f6f7f7;
+            display: grid;
+            gap: 6px;
+        }
+        .editor-media-card img {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #dcdcde;
+            background: #fff;
+        }
+        .editor-toolbar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            padding: 8px;
+            border: 1px solid #dcdcde;
+            border-bottom: 0;
+            border-radius: 6px 6px 0 0;
+            background: #f6f7f7;
+        }
+        .editor-toolbar button {
+            min-width: auto;
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+        .editor-wysiwyg {
+            border: 1px solid #8c8f94;
+            border-radius: 0 0 6px 6px;
+            background: #fff;
+            min-height: 180px;
+            padding: 10px;
+            overflow: auto;
+        }
+        .editor-wysiwyg:focus {
+            outline: 2px solid #72aee6;
+            outline-offset: 1px;
+        }
+        .dashboard-image-preview {
+            margin-top: 8px;
+            border: 1px solid #dcdcde;
+            border-radius: 6px;
+            background: #fff;
+            padding: 6px;
+            max-width: 320px;
+        }
+        .dashboard-image-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 4px;
+        }
+        .dashboard-image-preview.is-empty {
+            display: none;
+        }
         @media (max-width: 960px) {
             .wp-shell { grid-template-columns: 1fr; }
             .wp-sidebar {
@@ -1154,13 +1118,12 @@
                 <a class="<?php echo $page === 'users' ? 'active' : ''; ?>" href="/dashboard/users">Gebruikers</a>
                 <a class="<?php echo $page === 'blogs' ? 'active' : ''; ?>" href="/dashboard/blogs">Blogposts</a>
                 <a class="<?php echo $page === 'pages' ? 'active' : ''; ?>" href="/dashboard/pages">Pagina's</a>
-                <a class="<?php echo $page === 'content' ? 'active' : ''; ?>" href="/dashboard/content/services">Content</a>
                 <?php foreach (($contentTypesList ?? []) as $sidebarTypeKey => $sidebarTypeDefinition) : ?>
                     <?php
                         $sidebarTypeSlug = (string)($sidebarTypeDefinition['slug'] ?? $sidebarTypeKey);
                         $sidebarTypeActive = $page === 'content' && (string)($contentSelectedTypeKey ?? '') === (string)$sidebarTypeKey;
                     ?>
-                    <a class="sub-item <?php echo $sidebarTypeActive ? 'active' : ''; ?>" href="/dashboard/content/<?php echo htmlspecialchars($sidebarTypeSlug); ?>">
+                    <a class="<?php echo $sidebarTypeActive ? 'active' : ''; ?>" href="/dashboard/<?php echo htmlspecialchars($sidebarTypeSlug); ?>">
                         <?php echo htmlspecialchars((string)($sidebarTypeDefinition['label'] ?? $sidebarTypeKey)); ?>
                     </a>
                 <?php endforeach; ?>
@@ -1213,5 +1176,396 @@
             ?>
         </main>
     </div>
+
+    <div class="editor-media-modal" id="editor-media-modal" aria-hidden="true">
+        <div class="editor-media-panel" role="dialog" aria-modal="true" aria-labelledby="editorMediaTitle">
+            <div class="row" style="justify-content:space-between; align-items:center;">
+                <h3 id="editorMediaTitle" style="margin:0;">Selecteer media</h3>
+                <button type="button" class="secondary" id="editor-media-close">Sluiten</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+                <input type="search" id="editor-media-search" placeholder="Zoek op bestandsnaam...">
+                <a href="/dashboard/media" target="_blank">Open volledige mediabibliotheek</a>
+            </div>
+            <div class="editor-media-upload">
+                <div class="row">
+                    <input type="file" id="editor-media-upload-file" <?php echo !$canPagesWrite ? 'disabled' : ''; ?>>
+                    <select id="editor-media-upload-folder" <?php echo !$canPagesWrite ? 'disabled' : ''; ?>>
+                        <option value="0">Geen map</option>
+                        <?php foreach (($mediaFolders ?? []) as $folder) : ?>
+                            <option value="<?php echo (int)$folder['id']; ?>"><?php echo htmlspecialchars((string)$folder['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="row">
+                    <input type="text" id="editor-media-upload-alt" placeholder="Alt-tekst (optioneel)" <?php echo !$canPagesWrite ? 'disabled' : ''; ?>>
+                    <button type="button" id="editor-media-upload-button" <?php echo !$canPagesWrite ? 'disabled' : ''; ?>>Upload hier</button>
+                </div>
+                <div class="editor-media-upload-status" id="editor-media-upload-status"></div>
+            </div>
+            <div class="editor-media-grid" id="editor-media-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        window.FundamentalEditor = (function () {
+            var mediaItems = <?php echo json_encode($dashboardEditorMediaItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?> || [];
+            var csrfToken = <?php echo json_encode((string)$csrfToken, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+            var modal = document.getElementById('editor-media-modal');
+            var closeBtn = document.getElementById('editor-media-close');
+            var searchInput = document.getElementById('editor-media-search');
+            var grid = document.getElementById('editor-media-grid');
+            var uploadInput = document.getElementById('editor-media-upload-file');
+            var uploadAltInput = document.getElementById('editor-media-upload-alt');
+            var uploadFolderSelect = document.getElementById('editor-media-upload-folder');
+            var uploadBtn = document.getElementById('editor-media-upload-button');
+            var uploadStatus = document.getElementById('editor-media-upload-status');
+            var onPick = null;
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function renderMediaList(filterText) {
+                if (!grid) {
+                    return;
+                }
+                var q = String(filterText || '').toLowerCase().trim();
+                var html = '';
+
+                mediaItems.forEach(function (item) {
+                    var filename = String(item.filename || '');
+                    var path = String(item.path || '');
+                    var mime = String(item.mime_type || '');
+                    var hay = (filename + ' ' + path + ' ' + mime).toLowerCase();
+                    if (q && hay.indexOf(q) === -1) {
+                        return;
+                    }
+
+                    var preview = '';
+                    if (mime.indexOf('image/') === 0) {
+                        preview = '<img src="' + escapeHtml(path) + '" alt="' + escapeHtml(filename) + '">';
+                    }
+
+                    html += '<div class="editor-media-card">'
+                        + preview
+                        + '<strong>' + escapeHtml(filename || 'Bestand') + '</strong>'
+                        + '<div class="small">' + escapeHtml(mime || 'bestand') + '</div>'
+                        + '<button type="button" class="secondary js-media-use" data-path="' + escapeHtml(path) + '">Gebruik</button>'
+                        + '</div>';
+                });
+
+                if (!html) {
+                    html = '<div class="small">Geen media gevonden in de huidige set. Upload of open de mediabibliotheek.</div>';
+                }
+                grid.innerHTML = html;
+
+                grid.querySelectorAll('.js-media-use').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        if (typeof onPick === 'function') {
+                            onPick(String(btn.getAttribute('data-path') || ''));
+                        }
+                        closeMediaPicker();
+                    });
+                });
+            }
+
+            function openMediaPicker(callback) {
+                onPick = callback;
+                if (!modal) {
+                    return;
+                }
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                renderMediaList(searchInput ? searchInput.value : '');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }
+
+            function closeMediaPicker() {
+                if (!modal) {
+                    return;
+                }
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                onPick = null;
+            }
+
+            function setUploadStatus(text, statusClass) {
+                if (!uploadStatus) {
+                    return;
+                }
+                uploadStatus.classList.remove('is-error');
+                uploadStatus.classList.remove('is-ok');
+                if (statusClass) {
+                    uploadStatus.classList.add(statusClass);
+                }
+                uploadStatus.textContent = String(text || '');
+            }
+
+            function uploadFromPicker() {
+                if (!uploadInput || !uploadInput.files || !uploadInput.files[0]) {
+                    setUploadStatus('Selecteer eerst een bestand.', 'is-error');
+                    return;
+                }
+
+                var data = new FormData();
+                data.append('csrf', csrfToken);
+                data.append('action', 'media_upload');
+                data.append('media_file', uploadInput.files[0]);
+                data.append('folder_id', uploadFolderSelect ? String(uploadFolderSelect.value || '0') : '0');
+                data.append('alt_text', uploadAltInput ? String(uploadAltInput.value || '') : '');
+
+                setUploadStatus('Uploaden...', '');
+                if (uploadBtn) {
+                    uploadBtn.disabled = true;
+                }
+
+                fetch(window.location.pathname, {
+                    method: 'POST',
+                    body: data,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(function (response) {
+                    return response.json().then(function (payload) {
+                        return { ok: response.ok, payload: payload || {} };
+                    });
+                })
+                .then(function (result) {
+                    var payload = result.payload || {};
+                    if (!result.ok || !payload.ok) {
+                        throw new Error(String(payload.error || 'Upload mislukt.'));
+                    }
+
+                    var item = payload.item || null;
+                    if (!item || !item.path) {
+                        throw new Error('Upload gelukt, maar media-item kon niet worden geladen.');
+                    }
+
+                    mediaItems.unshift(item);
+                    renderMediaList(searchInput ? searchInput.value : '');
+                    setUploadStatus('Upload gelukt.', 'is-ok');
+
+                    if (uploadInput) {
+                        uploadInput.value = '';
+                    }
+                    if (uploadAltInput) {
+                        uploadAltInput.value = '';
+                    }
+
+                    if (typeof onPick === 'function') {
+                        onPick(String(item.path || ''));
+                        closeMediaPicker();
+                    }
+                })
+                .catch(function (error) {
+                    setUploadStatus(String((error && error.message) || 'Upload mislukt.'), 'is-error');
+                })
+                .finally(function () {
+                    if (uploadBtn) {
+                        uploadBtn.disabled = false;
+                    }
+                });
+            }
+
+            function insertHtmlAtCursor(editable, html) {
+                editable.focus();
+                if (document.execCommand) {
+                    document.execCommand('insertHTML', false, html);
+                    return;
+                }
+                editable.innerHTML += html;
+            }
+
+            function initWysiwyg(textarea) {
+                if (!textarea || textarea.dataset.editorInit === '1') {
+                    return null;
+                }
+                textarea.dataset.editorInit = '1';
+                textarea.classList.add('fnd-wysiwyg-source');
+
+                var wrapper = document.createElement('div');
+                var toolbar = document.createElement('div');
+                var editable = document.createElement('div');
+                wrapper.className = 'editor-wysiwyg-wrap';
+                toolbar.className = 'editor-toolbar';
+                editable.className = 'editor-wysiwyg';
+                editable.contentEditable = 'true';
+
+                var value = String(textarea.value || '');
+                if (/<[a-z][\s\S]*>/i.test(value)) {
+                    editable.innerHTML = value;
+                } else {
+                    editable.textContent = value;
+                }
+
+                toolbar.innerHTML = ''
+                    + '<button type="button" data-cmd="bold"><strong>B</strong></button>'
+                    + '<button type="button" data-cmd="italic"><em>I</em></button>'
+                    + '<button type="button" data-wrap="h2">H2</button>'
+                    + '<button type="button" data-wrap="p">P</button>'
+                    + '<button type="button" data-cmd="insertUnorderedList">Lijst</button>'
+                    + '<button type="button" data-link="1">Link</button>'
+                    + '<button type="button" data-image="1">Afbeelding</button>';
+
+                toolbar.querySelectorAll('[data-cmd]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        editable.focus();
+                        document.execCommand(String(btn.getAttribute('data-cmd')), false, null);
+                    });
+                });
+
+                toolbar.querySelectorAll('[data-wrap]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var tag = String(btn.getAttribute('data-wrap') || 'p');
+                        var selection = window.getSelection();
+                        var selected = selection ? selection.toString() : '';
+                        if (!selected) {
+                            selected = 'Tekst';
+                        }
+                        insertHtmlAtCursor(editable, '<' + tag + '>' + escapeHtml(selected) + '</' + tag + '>');
+                    });
+                });
+
+                toolbar.querySelectorAll('[data-link]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var url = window.prompt('URL invoeren', '/');
+                        if (!url) {
+                            return;
+                        }
+                        editable.focus();
+                        document.execCommand('createLink', false, url);
+                    });
+                });
+
+                toolbar.querySelectorAll('[data-image]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        openMediaPicker(function (path) {
+                            if (!path) {
+                                return;
+                            }
+                            insertHtmlAtCursor(editable, '<img src="' + escapeHtml(path) + '" alt="">');
+                        });
+                    });
+                });
+
+                textarea.style.display = 'none';
+                textarea.parentNode.insertBefore(wrapper, textarea);
+                wrapper.appendChild(toolbar);
+                wrapper.appendChild(editable);
+                wrapper.appendChild(textarea);
+
+                textarea.__fndSync = function () {
+                    textarea.value = editable.innerHTML;
+                };
+
+                return { textarea: textarea, editable: editable };
+            }
+
+            function syncForm(form) {
+                if (!form) {
+                    return;
+                }
+                form.querySelectorAll('.fnd-wysiwyg-source').forEach(function (textarea) {
+                    if (typeof textarea.__fndSync === 'function') {
+                        textarea.__fndSync();
+                    }
+                });
+            }
+
+            function bindMediaButton(button) {
+                if (!button || button.dataset.mediaBound === '1') {
+                    return;
+                }
+                button.dataset.mediaBound = '1';
+                button.addEventListener('click', function () {
+                    var targetId = String(button.getAttribute('data-target') || '');
+                    var target = targetId ? document.getElementById(targetId) : null;
+                    if (!target) {
+                        return;
+                    }
+                    openMediaPicker(function (path) {
+                        target.value = path;
+                        target.dispatchEvent(new Event('change'));
+                    });
+                });
+            }
+
+            function bindImagePreview(previewWrap) {
+                if (!previewWrap || previewWrap.dataset.previewBound === '1') {
+                    return;
+                }
+
+                var inputId = String(previewWrap.getAttribute('data-input-id') || '');
+                var imgId = String(previewWrap.getAttribute('data-img-id') || '');
+                var input = inputId ? document.getElementById(inputId) : null;
+                var img = imgId ? document.getElementById(imgId) : null;
+
+                if (!input || !img) {
+                    return;
+                }
+
+                previewWrap.dataset.previewBound = '1';
+
+                function syncPreview() {
+                    var value = String(input.value || '').trim();
+                    if (!value) {
+                        img.src = '';
+                        previewWrap.classList.add('is-empty');
+                        return;
+                    }
+
+                    img.src = value;
+                    previewWrap.classList.remove('is-empty');
+                }
+
+                input.addEventListener('input', syncPreview);
+                input.addEventListener('change', syncPreview);
+                syncPreview();
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeMediaPicker);
+            }
+            if (modal) {
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeMediaPicker();
+                    }
+                });
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    renderMediaList(searchInput.value || '');
+                });
+            }
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', uploadFromPicker);
+            }
+            if (uploadInput) {
+                uploadInput.addEventListener('change', function () {
+                    setUploadStatus('', '');
+                });
+            }
+
+            return {
+                openMediaPicker: openMediaPicker,
+                closeMediaPicker: closeMediaPicker,
+                initWysiwyg: initWysiwyg,
+                syncForm: syncForm,
+                bindMediaButton: bindMediaButton,
+                bindImagePreview: bindImagePreview,
+                uploadFromPicker: uploadFromPicker
+            };
+        })();
+    </script>
 </body>
 </html>
