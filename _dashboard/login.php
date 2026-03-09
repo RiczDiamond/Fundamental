@@ -1,61 +1,119 @@
-<?php
-
-    session_start();
-
-    if (!empty($_SESSION['user_id'])) {
-        wp_safe_redirect('/dashboard');
-    }
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (!wp_require_valid_nonce('dashboard_login')) {
-            $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
-        }
-
-        $username = sanitize_text_field($_POST['username'] ?? '');
-        $password = (string) wp_unslash($_POST['password'] ?? '');
-
-        // Haal user op
-        $stmt = $link->prepare("SELECT * FROM users WHERE user_login = :username LIMIT 1");
-        $stmt->execute(['username' => $username]);
-        $user = $stmt->fetch();
-
-        if (empty($error) && $user && password_verify($password, $user['user_pass'])) {
-            // Login succesvol
-            $_SESSION['user_id'] = (int) ($user['id'] ?? $user['ID'] ?? 0);
-            $_SESSION['user_name'] = (string) ($user['display_name'] ?? $user['user_login'] ?? 'Gebruiker');
-            wp_safe_redirect('/dashboard');
-        } else {
-            $error = "Ongeldige gebruikersnaam of wachtwoord";
-        }
-    }
-    
-?>
-
-<?php if (!empty($error)): ?>
-    <p style="color:red;"><?php echo esc_html($error); ?></p>
-<?php endif; ?>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <style>
-        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f5f5f5; }
-        form { background: #fff; padding: 2rem; border-radius: 6px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input { display: block; margin-bottom: 1rem; padding: 0.5rem; width: 100%; }
-        button { padding: 0.5rem 1rem; background: #0073aa; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
-        button:hover { background: #005177; }
-    </style>
+    <title>Login | Dashboard</title>
+    <link href="/css/login.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;700&family=Roboto&display=swap" rel="stylesheet">
 </head>
 <body>
-    <form method="POST" action="/login">
-        <?php wp_nonce_field('dashboard_login'); ?>
-        <h2>Login</h2>
-        <input type="text" name="username" placeholder="Gebruikersnaam" required>
-        <input type="password" name="password" placeholder="Wachtwoord" required>
-        <button type="submit">Login</button>
-    </form>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('fully-loaded');
+        });
+    </script>
+
+    <!-- Main container -->
+    <div class="login-container">
+        <!-- Left side - Visual section (hidden on mobile, visible on desktop) -->
+        <div class="visual-section">
+            <div class="image"></div>
+            <div class="text">
+                <h1>Welkom terug</h1>
+                <h2>Bij ons dashboard</h2>
+            </div>
+        </div>
+
+        <!-- Right side - Form section -->
+        <div class="form-section">
+            <a href="/" class="logo" aria-label="Home"></a>
+            
+            <div class="form-container <?php echo !empty($error) ? 'error' : ''; ?>">
+                <?php if (!empty($error)): ?>
+                    <div class="error-message">
+                        <?php echo esc_html($error); ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="login-header">
+                    <h2>Inloggen</h2>
+                    <p>Voer uw gegevens in om verder te gaan</p>
+                </div>
+
+                <form method="POST" action="/login" id="loginForm">
+                    <?php mol_nonce_field('dashboard_login'); ?>
+
+                    <div class="input-group">
+                        <label for="username">Gebruikersnaam</label>
+                        <input 
+                            type="text" 
+                            id="username"
+                            name="username" 
+                            placeholder="Uw gebruikersnaam" 
+                            required
+                            value="<?php echo isset($_POST['username']) ? esc_attr($_POST['username']) : ''; ?>"
+                        >
+                    </div>
+
+                    <div class="input-group">
+                        <label for="password">Wachtwoord</label>
+                        <input 
+                            type="password" 
+                            id="password"
+                            name="password" 
+                            placeholder="••••••••" 
+                            required
+                        >
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input 
+                            type="checkbox" 
+                            name="remember" 
+                            id="remember" 
+                            value="1"
+                            <?php echo !empty($_POST['remember']) ? 'checked' : ''; ?>
+                        >
+                        <label for="remember">Ingelogd blijven</label>
+                    </div>
+
+                    <button type="submit" class="button" id="submitBtn">
+                        Inloggen
+                    </button>
+
+                    <a href="/wachtwoord-vergeten" class="forgot-link">Wachtwoord vergeten?</a>
+                </form>
+            </div>
+
+            <a href="/" class="website-link">Naar de website</a>
+        </div>
+    </div>
+
+    <script src="/js/jq.js" type="text/javascript"></script>
+    <script src="/js/admin.js" type="text/javascript"></script>
+
+    <script>
+        // Form loading state
+        const form = document.getElementById('loginForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (form && submitBtn) {
+            form.addEventListener('submit', function() {
+                submitBtn.classList.add('loading', 'in-progress');
+                submitBtn.innerHTML = 'Bezig met inloggen...';
+            });
+        }
+
+        // Remove loading state if back button is used
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                submitBtn.classList.remove('loading', 'in-progress');
+                submitBtn.innerHTML = 'Inloggen';
+            }
+        });
+    </script>
 </body>
 </html>
-

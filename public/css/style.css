@@ -76,10 +76,10 @@ img.fullwidth { width: calc(100% - 100px); margin: 100px auto; display: block; }
 
 header { padding: 40px 50px; max-width: 1200px; font-size: 0; line-height: 0; margin-bottom: 100px; }
 header a { display: inline-block; vertical-align: top; position: relative; }
-header img { width: 200px; }
-header svg { width: 200px; opacity: 0; }
+header img { width: 50px; }
+header svg { width: 50px; opacity: 0; }
 header svg path.text { fill: transparent; }
-header svg path.text.loaded { fill: #000; transition: all .2s; }
+header svg path.text.loaded { fill: #fff; transition: all .2s; }
 header svg path.badge { transform: translatey(-100%);  }
 header svg path.badge.loaded { transform: translatey(0%); transition: all .2s; animation: bounce .5s; }
 @keyframes bounce { 70% { transform: translatey(20%); } 100% { transform: translatey(0%); } }
@@ -231,8 +231,8 @@ footer div.column h3 { color: rgba(0,0,0,.3); text-transform: uppercase; font-si
 footer div.column a { display: table; }
 footer div.column b { display: block; }
 footer div.column address { font-style: normal; }
-footer img { width: 170px; }
-footer div.column a.logo svg { width: 170px; }
+footer img { width: 50px; }
+footer div.column a.logo svg { width: 50px; }
 footer div.column a.social svg { width: 15px; vertical-align: top; margin-top: 6px; margin-right: 7px; }
 
 
@@ -340,7 +340,7 @@ section.offerte div.offerte div#contactinfo span#companyname { font-weight: 700;
 	.content .column { display: block; width: 100%; padding: 0 !important; }
 	
 	header { padding: 30px; width: 100%; margin-bottom: 30px; }
-	header svg { width: 130px; }
+	header svg { width: 50px; }
 	header div.tagline { display: none; }
 	header ul { line-height: 18px; }
 	header div#menu a.menu { width: 40px; height: 40px; margin-left: -20px; top: 17px; }
@@ -367,7 +367,7 @@ section.offerte div.offerte div#contactinfo span#companyname { font-weight: 700;
 	footer div.columns { width: calc(100% - 60px); margin: 0 30px ; }
 	footer div.column { font-size: 13px; white-space: nowrap; box-sizing: border-box !important; display: inline-block !important; width: 50% !important; min-width: auto !important; }
 	footer div.column h3 { margin-bottom: 10px; }
-	footer div.column a.logo svg { width: 105px; vertical-align: middle; }
+	footer div.column a.logo svg { width: 50px; vertical-align: middle; }
 	footer div.column:nth-child(2) { margin-bottom: 20px !important; }
 	
 	.services div.block p { column-gap: 50px; }
@@ -411,8 +411,8 @@ section.offerte div.offerte div#contactinfo span#companyname { font-weight: 700;
 	.services div.block { box-shadow: none; padding: 0; }
 	.services div.block p { font-size: 15px !important; }
 	
-	header a.logo { width: 50%; }
-	header svg { width: 100%; }
+	header a.logo { width: 50px; }
+	header svg { width: 50px; }
 	
 	header ul { display: none; }
 	header div#menu a.menu { left: auto; right: 30px }

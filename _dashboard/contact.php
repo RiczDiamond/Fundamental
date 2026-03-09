@@ -1,11 +1,7 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 $q = sanitize_text_field($_GET['q'] ?? '');
@@ -17,7 +13,7 @@ $error = '';
 $intent = sanitize_text_field($_POST['intent'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $intent === 'sync_imap') {
-    if (!wp_require_valid_nonce('contact_sync')) {
+    if (!mol_require_valid_nonce('contact_sync')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
@@ -53,12 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $intent === 'sync_imap') {
     }
 
     if ($error === '') {
-        wp_safe_redirect($redirect);
+        mol_safe_redirect($redirect);
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $intent === 'send_reply') {
-    if (!wp_require_valid_nonce('contact_reply')) {
+    if (!mol_require_valid_nonce('contact_reply')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
@@ -108,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $intent === 'send_reply') {
             $redirect .= '&q=' . urlencode($q);
         }
         $redirect .= $sent ? '&reply=sent' : '&reply=failed';
-        wp_safe_redirect($redirect);
+        mol_safe_redirect($redirect);
     }
 }
 
@@ -120,7 +116,7 @@ if ($replyStatus === 'failed') {
     $error = 'Reply kon niet worden verzonden. Bericht is wel gelogd in dashboard.';
 
     if (isset($_SESSION['contact_reply_error']) && is_string($_SESSION['contact_reply_error']) && $_SESSION['contact_reply_error'] !== '') {
-        $error .= ' Fout: ' . $_SESSION['contact_reply_error'];
+        error_log('Contact reply send failed: ' . $_SESSION['contact_reply_error']);
     }
 
     unset($_SESSION['contact_reply_error']);
@@ -130,7 +126,8 @@ if (isset($_SESSION['contact_sync_notice']) && is_string($_SESSION['contact_sync
     $notice = $_SESSION['contact_sync_notice'];
 }
 if (isset($_SESSION['contact_sync_error']) && is_string($_SESSION['contact_sync_error']) && $_SESSION['contact_sync_error'] !== '') {
-    $error = $_SESSION['contact_sync_error'];
+    $error = 'IMAP sync kon niet worden uitgevoerd. Controleer de mailserver-instellingen of neem contact op met de beheerder.';
+    error_log('Contact IMAP sync failed: ' . $_SESSION['contact_sync_error']);
 }
 unset($_SESSION['contact_sync_notice'], $_SESSION['contact_sync_error']);
 
@@ -214,7 +211,7 @@ if ($selectedId > 0) {
         <a href="/dashboard/media">Media Library</a>
         <a href="/dashboard/menus">Menu Beheer</a>
         <a class="active" href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -231,7 +228,7 @@ if ($selectedId > 0) {
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
                             <form method="post" action="/dashboard/contact" style="margin:0;">
                                 <input type="hidden" name="intent" value="sync_imap">
-                                <?php wp_nonce_field('contact_sync'); ?>
+                                <?php mol_nonce_field('contact_sync'); ?>
                                 <input type="hidden" name="submission_id" value="<?php echo $selectedId; ?>">
                                 <input type="hidden" name="q" value="<?php echo esc_attr($q); ?>">
                                 <button class="btn" type="submit">IMAP sync nu</button>
@@ -312,7 +309,7 @@ if ($selectedId > 0) {
                             <h3 style="margin-top:14px;">Reply sturen</h3>
                             <form method="post" action="/dashboard/contact" style="display:grid; gap:8px;">
                                 <input type="hidden" name="intent" value="send_reply">
-                                <?php wp_nonce_field('contact_reply'); ?>
+                                <?php mol_nonce_field('contact_reply'); ?>
                                 <input type="hidden" name="submission_id" value="<?php echo (int) $selected['id']; ?>">
                                 <input type="hidden" name="q" value="<?php echo esc_attr($q); ?>">
 

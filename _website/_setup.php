@@ -21,7 +21,7 @@
         $templateCandidates[] = 'index.php';
     } else {
         if ($requestedSlug === 'home' && isset($_GET['url']) && trim((string) $_GET['url']) !== '') {
-            wp_safe_redirect(get_permalink_by_slug('home'), 301);
+            mol_safe_redirect(get_permalink_by_slug('home'), 301);
         }
 
         $resolvedPage = resolve_post_by_slug($link, $requestedSlug, 'page');
@@ -41,7 +41,7 @@
 
             if (!empty($resolvedPage['matched_old_slug'])) {
                 $target = get_post_permalink($page);
-                wp_safe_redirect($target, 301);
+                mol_safe_redirect($target, 301);
             }
 
             $safeSlug = preg_replace('/[^a-z0-9\-]/i', '', (string) $page['post_name']);

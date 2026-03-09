@@ -4,8 +4,8 @@
 
 return [
     'paths' => [
-        'migrations' => __DIR__ . '/database/migrations',
-        'seeds'      => __DIR__ . '/database/seeds',
+        'migrations' => __DIR__ . '/resources/database/migrations',
+        'seeds'      => __DIR__ . '/resources/database/seeds',
     ],
 
     'environments' => [

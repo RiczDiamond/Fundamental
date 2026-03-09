@@ -1,18 +1,14 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && sanitize_text_field($_POST['intent'] ?? '') === 'upload') {
-    if (!wp_require_valid_nonce('media_upload')) {
+    if (!mol_require_valid_nonce('media_upload')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
@@ -78,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && sanitize_text_field($_POST['intent'
                 ]);
 
                 $attachmentId = (int) $link->lastInsertId();
-                upsert_post_meta($link, $attachmentId, '_wp_attached_file', $targetRel);
+                upsert_post_meta($link, $attachmentId, '_mol_attached_file', $targetRel);
 
                 $message = 'Bestand geupload naar media library.';
             }
@@ -88,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && sanitize_text_field($_POST['intent'
 }
 
 $q = sanitize_text_field($_GET['q'] ?? '');
-$sql = "\n    SELECT p.ID, p.post_title, p.guid, p.post_mime_type, p.post_date, pm.meta_value AS file_path\n    FROM posts p\n    LEFT JOIN postmeta pm ON pm.post_id = p.ID AND pm.meta_key = '_wp_attached_file'\n    WHERE p.post_type = 'attachment'\n";
+$sql = "\n    SELECT p.ID, p.post_title, p.guid, p.post_mime_type, p.post_date, pm.meta_value AS file_path\n    FROM posts p\n    LEFT JOIN postmeta pm ON pm.post_id = p.ID AND pm.meta_key = '_mol_attached_file'\n    WHERE p.post_type = 'attachment'\n";
 $bind = [];
 if ($q !== '') {
     $sql .= " AND (p.post_title LIKE :q OR pm.meta_value LIKE :q) ";
@@ -153,7 +149,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <a class="active" href="/dashboard/media">Media Library</a>
         <a href="/dashboard/menus">Menu Beheer</a>
         <a href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -179,7 +175,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
 
         <form method="post" enctype="multipart/form-data" action="/dashboard/media" style="margin-bottom:12px;">
             <input type="hidden" name="intent" value="upload">
-            <?php wp_nonce_field('media_upload'); ?>
+            <?php mol_nonce_field('media_upload'); ?>
             <div class="bar">
                 <input type="file" name="media_file" accept="image/*,.pdf,.svg,.webp,.jpg,.jpeg,.png,.gif" required>
                 <button class="btn" type="submit">Upload</button>

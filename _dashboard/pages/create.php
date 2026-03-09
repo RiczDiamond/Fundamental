@@ -1,11 +1,7 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
@@ -21,7 +17,7 @@ $form = [
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!wp_require_valid_nonce('pages_create')) {
+    if (!mol_require_valid_nonce('pages_create')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
@@ -106,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             upsert_post_meta($link, $newPageId, '_sections_json', $sectionsJson);
-            wp_safe_redirect('/dashboard/pages/edit?id=' . $newPageId . '&created=1');
+            mol_safe_redirect('/dashboard/pages/edit?id=' . $newPageId . '&created=1');
         }
 
         $error = 'Aanmaken van de pagina is mislukt.';
@@ -155,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="/dashboard/media">Media Library</a>
         <a href="/dashboard/menus">Menu Beheer</a>
         <a href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -174,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
 
                     <form method="post" action="/dashboard/pages/create">
-                        <?php wp_nonce_field('pages_create'); ?>
+                        <?php mol_nonce_field('pages_create'); ?>
                         <label for="post_title">Titel</label>
                         <input id="post_title" name="post_title" type="text" value="<?php echo esc_attr($form['post_title']); ?>" required>
 

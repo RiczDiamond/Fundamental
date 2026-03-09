@@ -1,11 +1,7 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 function menu_decode(string $json): array {
@@ -39,12 +35,12 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!wp_require_valid_nonce('menus_save')) {
+    if (!mol_require_valid_nonce('menus_save')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
-    $headerJson = (string) wp_unslash($_POST['menu_json_header'] ?? '[]');
-    $footerJson = (string) wp_unslash($_POST['menu_json_footer'] ?? '[]');
+    $headerJson = (string) mol_unslash($_POST['menu_json_header'] ?? '[]');
+    $footerJson = (string) mol_unslash($_POST['menu_json_footer'] ?? '[]');
 
     if ($error === '') {
         $headerItems = menu_decode($headerJson);
@@ -115,7 +111,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <a href="/dashboard/media">Media Library</a>
         <a class="active" href="/dashboard/menus">Menu Beheer</a>
         <a href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -139,7 +135,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <?php if ($error !== ''): ?><div class="error"><?php echo esc_html($error); ?></div><?php endif; ?>
 
         <form method="post" action="/dashboard/menus" id="menu-form">
-            <?php wp_nonce_field('menus_save'); ?>
+            <?php mol_nonce_field('menus_save'); ?>
             <input type="hidden" name="menu_json_header" id="menu_json_header" value="[]">
             <input type="hidden" name="menu_json_footer" id="menu_json_footer" value="[]">
 

@@ -1,11 +1,7 @@
-﻿<?php
+<?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 $pageId = absint($_GET['id'] ?? 0);
@@ -30,14 +26,14 @@ if (isset($_GET['restore_revision'])) {
     $restoreNonce = sanitize_text_field($_GET['_wpnonce'] ?? '');
     $revision = null;
 
-    if (wp_require_valid_nonce('pages_restore_revision_' . $pageId, '_wpnonce', $_GET)) {
+    if (mol_require_valid_nonce('pages_restore_revision_' . $pageId, '_wpnonce', $_GET)) {
         $revision = get_post_revision_by_id($link, $revisionId, $pageId);
     }
 
     if ($revision) {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         restore_post_from_revision($link, $revision, $userId);
-        wp_safe_redirect('/dashboard/pages/edit?id=' . $pageId . '&restored=1');
+        mol_safe_redirect('/dashboard/pages/edit?id=' . $pageId . '&restored=1');
     }
 }
 
@@ -56,7 +52,7 @@ if ($sections === []) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!wp_require_valid_nonce('pages_edit_' . $pageId)) {
+    if (!mol_require_valid_nonce('pages_edit_' . $pageId)) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
     }
 
@@ -157,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             upsert_post_meta($link, $pageId, '_sections_json', $sectionsJson);
 
-            wp_safe_redirect('/dashboard/pages/edit?id=' . $pageId . '&saved=1');
+            mol_safe_redirect('/dashboard/pages/edit?id=' . $pageId . '&saved=1');
         }
     }
 
@@ -247,7 +243,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <a href="/dashboard/media">Media Library</a>
         <a href="/dashboard/menus">Menu Beheer</a>
         <a href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -270,7 +266,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <?php if ($error !== ''): ?><div class="error"><?php echo esc_html($error); ?></div><?php endif; ?>
 
         <form method="post" action="/dashboard/pages/edit?id=<?php echo (int) $page['ID']; ?>">
-            <?php wp_nonce_field('pages_edit_' . (int) $page['ID']); ?>
+            <?php mol_nonce_field('pages_edit_' . (int) $page['ID']); ?>
             <label for="post_title">Titel</label>
             <input id="post_title" name="post_title" type="text" value="<?php echo esc_html((string) $page['post_title']); ?>" required>
 
@@ -367,7 +363,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                         <td><?php echo esc_html((string) $revision['created_at']); ?></td>
                         <td>
                             <a class="btn btn-link" href="/dashboard/pages/edit?id=<?php echo (int) $page['ID']; ?>&compare_revision=<?php echo (int) $revision['id']; ?>">Vergelijk</a>
-                            <a class="btn btn-link" href="/dashboard/pages/edit?id=<?php echo (int) $page['ID']; ?>&restore_revision=<?php echo (int) $revision['id']; ?>&_wpnonce=<?php echo esc_attr(wp_create_nonce('pages_restore_revision_' . (int) $page['ID'])); ?>">Herstel</a>
+                            <a class="btn btn-link" href="/dashboard/pages/edit?id=<?php echo (int) $page['ID']; ?>&restore_revision=<?php echo (int) $revision['id']; ?>&_wpnonce=<?php echo esc_attr(mol_create_nonce('pages_restore_revision_' . (int) $page['ID'])); ?>">Herstel</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

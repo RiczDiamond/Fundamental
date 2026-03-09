@@ -10,8 +10,16 @@
     }
 
     if ( isset($url[0]) && $url[0] === 'dashboard' ) {
+
+        if (isset($url[1]) && $url[1] === 'logout') {
+        
+            mol_logout();
+            mol_safe_redirect('/login');
+        
+        }
+
         require_once __DIR__ . '/dashboard.php';
         return;
     }
 
-    wp_safe_redirect('/login');
+    mol_safe_redirect('/login');

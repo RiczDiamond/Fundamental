@@ -13,7 +13,7 @@ $form = [
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_form']) && $_POST['contact_form'] === '1') {
-	if (!wp_require_valid_nonce('public_contact_form')) {
+	if (!mol_require_valid_nonce('public_contact_form')) {
 		$contactError = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
 	}
 
@@ -93,7 +93,7 @@ $sections = get_page_sections($link, (int) $page['ID']);
 
 		<form method="post" action="" class="contact-form" novalidate>
 			<input type="hidden" name="contact_form" value="1">
-			<?php wp_nonce_field('public_contact_form'); ?>
+			<?php mol_nonce_field('public_contact_form'); ?>
 
 			<label for="contact-name">Naam</label>
 			<input id="contact-name" type="text" name="name" value="<?php echo esc_attr($form['name']); ?>" required>

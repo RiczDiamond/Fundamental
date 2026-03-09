@@ -1,42 +1,13 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+// if (!is_user_logged_in()) {
+//     mol_safe_redirect('/login');
+// }
 
-
-?>
-<?php if (!empty($_SESSION['user_id'])): ?>
-<div style="position:fixed;top:0;left:0;width:100%;background:#23282d;color:#fff;font-family:sans-serif;font-size:14px;z-index:9999;">
-    
-    <div style="max-width:1200px;margin:auto;display:flex;justify-content:space-between;padding:8px 15px;">
-
-        <div>
-            <span style="margin-right:15px;">
-                <a href="/">Home</a>
-            </span>
-
-          
-        </div>
-
-    </div>
-
-</div>
-
-<div style="height:32px;"></div>
-<?php endif; ?>
-
-<?php
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
-}
-
-if (isset($params['logout'])) {
-    $_SESSION = [];
-    session_destroy();
-    wp_safe_redirect('/login');
-}
+// if (isset($params['logout'])) {
+//     mol_logout();
+//     mol_safe_redirect('/login');
+// }
 
 $section = $url[1] ?? 'home';
 $action = $url[2] ?? '';
@@ -93,7 +64,7 @@ $recentMediaStmt = $link->prepare("\n    SELECT ID, post_title, guid, post_date\
 $recentMediaStmt->execute();
 $recentMedia = $recentMediaStmt->fetchAll();
 
-$username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
+$username = mol_get_current_user_display_name();
 $currentPath = '/' . implode('/', array_filter($url));
 ?>
 <!doctype html>
@@ -376,7 +347,7 @@ $currentPath = '/' . implode('/', array_filter($url));
             <li><a href="/dashboard/media" class="<?php echo str_starts_with($currentPath, '/dashboard/media') ? 'active' : ''; ?>">Media Library</a></li>
             <li><a href="/dashboard/menus" class="<?php echo str_starts_with($currentPath, '/dashboard/menus') ? 'active' : ''; ?>">Menu Beheer</a></li>
             <li><a href="/dashboard/contact" class="<?php echo str_starts_with($currentPath, '/dashboard/contact') ? 'active' : ''; ?>">Contact Berichten</a></li>
-            <li><a href="/dashboard?logout=1">Uitloggen</a></li>
+            <li><a href="/dashboard/logout">Uitloggen</a></li>
         </ul>
     </aside>
 
@@ -389,7 +360,7 @@ $currentPath = '/' . implode('/', array_filter($url));
             <div>
                 <a class="btn btn-primary" href="/dashboard/pages">Ga Naar Pagina's</a>
                 <a class="btn btn-ghost" href="/dashboard/media">Upload Media</a>
-                <a class="btn btn-danger" href="/dashboard?logout=1">Logout</a>
+                <a class="btn btn-danger" href="/dashboard/logout">Logout</a>
             </div>
         </div>
 

@@ -129,3 +129,24 @@ define('DB', [
     'PREFIX' => cfg_env('DB_PREFIX', ''),
     'CHARSET' => cfg_env('DB_CHARSET', 'utf8mb4'),
 ]);
+
+/**
+ * Basisinstellingen voor PHP-sessies en sessie-cookie.
+ *
+ * Deze instellingen gelden voor alle plekken waar `session_start()` wordt aangeroepen
+ * (nonce-helpers, authenticatie, etc.) en zorgen voor veilige cookie-flags.
+ */
+if (PHP_SAPI !== 'cli') {
+    $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+
+    if (PHP_VERSION_ID >= 70300) {
+        ini_set('session.cookie_samesite', 'Lax');
+    }
+
+    if (!headers_sent()) {
+        session_name('FUNDAMENTALSESSID');
+    }
+}

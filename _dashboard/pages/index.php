@@ -1,11 +1,7 @@
 <?php
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
-if (empty($_SESSION['user_id'])) {
-    wp_safe_redirect('/login');
+if (!is_user_logged_in()) {
+    mol_safe_redirect('/login');
 }
 
 $message = '';
@@ -15,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $intent = sanitize_text_field($_POST['intent'] ?? '');
 
     if ($intent === 'quick_edit') {
-        if (!wp_require_valid_nonce('pages_quick_edit')) {
+        if (!mol_require_valid_nonce('pages_quick_edit')) {
             $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
         }
 
@@ -57,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($intent === 'bulk') {
-        if (!wp_require_valid_nonce('pages_bulk')) {
+        if (!mol_require_valid_nonce('pages_bulk')) {
             $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
         }
 
@@ -193,7 +189,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <a href="/dashboard/media">Media Library</a>
         <a href="/dashboard/menus">Menu Beheer</a>
         <a href="/dashboard/contact">Contact Berichten</a>
-        <a href="/dashboard?logout=1">Uitloggen</a>
+        <a href="/dashboard/logout">Uitloggen</a>
     </aside>
 
     <main class="main">
@@ -234,7 +230,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
     <div class="panel">
         <form method="post" action="/dashboard/pages<?php echo $q !== '' || $statusFilter !== 'all' ? '?q=' . urlencode($q) . '&status=' . urlencode($statusFilter) : ''; ?>">
             <input type="hidden" name="intent" value="bulk">
-            <?php wp_nonce_field('pages_bulk'); ?>
+            <?php mol_nonce_field('pages_bulk'); ?>
             <div class="bulkbar">
                 <select name="bulk_action" style="max-width:220px;">
                     <option value="">Bulk-actie</option>
@@ -325,7 +321,7 @@ function submitQuick(id) {
 
     var data = {
         intent: 'quick_edit',
-        _wpnonce: '<?php echo esc_attr(wp_create_nonce('pages_quick_edit')); ?>',
+        _wpnonce: '<?php echo esc_attr(mol_create_nonce('pages_quick_edit')); ?>',
         id: String(id),
         post_title: document.getElementById('quick-title-' + id).value,
         post_name: document.getElementById('quick-slug-' + id).value,
