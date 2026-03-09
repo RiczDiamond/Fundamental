@@ -152,7 +152,7 @@
 
         require_once '../api/_setup.php';
 
-    } elseif (isset($url[0]) && in_array($url[0], ['dashboard', 'login'], true)) {
+    } elseif (isset($url[0]) && in_array($url[0], ['dashboard', 'login', 'wachtwoord-vergeten'], true)) {
 
         require_once '../_dashboard/_setup.php';
 

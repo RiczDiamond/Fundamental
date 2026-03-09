@@ -1215,17 +1215,22 @@
             return;
         }
 
-        $basePath = $sectionsBasePath ?: __DIR__ . '/../_website/blocks';
+        // By default blocks live in the project root "_website/blocks"; the previous
+        // implementation incorrectly resolved relative to the helpers folder which
+        // ended up pointing at "resources/_website/blocks". Use dirname() to climb out
+        // to the workspace root instead.
+        $root = dirname(__DIR__, 3); // .../fundamental
+        $basePath = $sectionsBasePath ?: $root . '/_website/blocks';
 
         // Backward compatibility for older setups that still use _website/sections.
         if (!is_dir($basePath) && $sectionsBasePath === null) {
-            $legacyPath = __DIR__ . '/../_website/sections';
+            $legacyPath = $root . '/_website/sections';
             if (is_dir($legacyPath)) {
                 $basePath = $legacyPath;
             }
         }
 
-        $componentHelpers = __DIR__ . '/../_website/partials/components.php';
+        $componentHelpers = $root . '/_website/partials/components.php';
         if (is_file($componentHelpers)) {
             require_once $componentHelpers;
         }
@@ -1521,13 +1526,54 @@
             return true;
         }
 
-        $autoloadPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+        // `vendor/autoload.php` is located in the project root, not inside
+        // resources/php. climb three levels from Helpers to reach the root.
+        $autoloadPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
         if (is_file($autoloadPath)) {
             require_once $autoloadPath;
         }
 
         return class_exists('PHPMailer\\PHPMailer\\PHPMailer');
+    }
+
+    /**
+     * Legacy wrapper used by some older templates/code. forwards to
+     * `send_mail_phpmailer()` so callers don't need to know about PHPMailer.
+     *
+     * Signature mirrors the parameters used by `forgot-password.php` and
+     * a handful of other places. Only the first five arguments are honoured
+     * (to, subject, body, from, fromName); the rest are ignored for now.
+     *
+     * @return true|string  true on success, error message string on failure.
+     */
+    if (!function_exists('email')) {
+        function email(
+            string $to,
+            string $subject,
+            string $body,
+            ?string $from = null,
+            ?string $fromName = null,
+            string $cc = '',
+            string $bcc = '',
+            array $attachments = [],
+            array $headers = [],
+            array $params = []
+        ) {
+            $error = null;
+            $sent = send_mail_phpmailer(
+                $to,
+                '',
+                $subject,
+                $body,
+                $from !== null && trim($from) !== '' ? $from : null,
+                $error
+            );
+            if ($sent) {
+                return true;
+            }
+            return $error ?: false;
+        }
     }
 
     /**

@@ -1,15 +1,32 @@
 <?php
 
     if ( !defined('BASE_URL') ) {
+
         die('Direct access not allowed');
+        
     }
 
-    if ( isset($url[0]) && $url[0] === 'login') {
+    if ( isset($url[0]) && $url[0] === 'login' ) {
+
         require_once __DIR__ . '/login.php';
         return;
+
+    }
+
+    if ( isset($url[0]) && $url[0] === 'wachtwoord-vergeten' ) {
+
+        require_once __DIR__ . '/forgot-password.php';
+        return;
+
     }
 
     if ( isset($url[0]) && $url[0] === 'dashboard' ) {
+
+        if (!is_user_logged_in()) {
+
+            mol_safe_redirect('/login');
+        
+        }
 
         if (isset($url[1]) && $url[1] === 'logout') {
         
@@ -20,6 +37,7 @@
 
         require_once __DIR__ . '/dashboard.php';
         return;
+
     }
 
     mol_safe_redirect('/login');

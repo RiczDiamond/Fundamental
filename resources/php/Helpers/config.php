@@ -48,7 +48,11 @@ if (!function_exists('cfg_load_env_file')) {
     }
 }
 
-cfg_load_env_file(__DIR__ . '/../.env');
+// `.env` lives in the project root. the helpers directory is at
+// resources/php/Helpers, so climb three levels up to get the root.
+// earlier code pointed at resources/php/.env which doesn't exist,
+// meaning MAIL/IMAP constants were always using default placeholders.
+cfg_load_env_file(dirname(__DIR__, 3) . '/.env');
 
 if (!function_exists('cfg_env')) {
     function cfg_env(string $key, ?string $default = null): ?string {
