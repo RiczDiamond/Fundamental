@@ -698,6 +698,34 @@
      *
      * @return array<string, array<string, mixed>>
      */
+    // custom schemas added at runtime by plugins or bootstrap script
+    function &get_custom_section_schemas(): array {
+        static $custom = [];
+        return $custom;
+    }
+
+    /**
+     * Register a section type schema so that external code (plugins, themes)
+     * can introduce new block types without editing the core helpers file.
+     *
+     * @param string $type
+     * @param array<string,mixed> $schema
+     */
+    function register_section_type(string $type, array $schema): void {
+        $type = strtolower(trim($type));
+        if ($type === '') {
+            return;
+        }
+        $map = &get_custom_section_schemas();
+        $map[$type] = $schema;
+    }
+
+    /**
+     * Centrale definitie van section types.
+     * Extra schemas van register_section_type() worden gemerged.
+     *
+     * @return array<string, array<string, mixed>>
+     */
     function get_section_schemas(): array {
         static $schemas = null;
 
@@ -747,6 +775,12 @@
                 'data_fields' => ['quote', 'author', 'role'],
             ],
         ];
+
+        // Merge in any custom/registered schemas so plugins can extend
+        $custom = get_custom_section_schemas();
+        if (!empty($custom)) {
+            $schemas = array_merge($schemas, $custom);
+        }
 
         return $schemas;
     }
@@ -1062,6 +1096,32 @@
      * @param array $input
      * @return array
      */
+    // lightweight HTML sanitizer based on HTMLPurifier (if available).
+    // falls back to strip_tags() when the library isn't installed.
+    function sanitize_section_html(string $html): string {
+        $html = trim($html);
+        if ($html === '') {
+            return '';
+        }
+
+        if (class_exists('HTMLPurifier')) {
+            static $purifier = null;
+            if ($purifier === null) {
+                $config = HTMLPurifier_Config::createDefault();
+                // limit allowed elements/attributes
+                $config->set('HTML.Allowed',
+                    'p,a[href],strong,em,ul,ol,li,br,h1,h2,h3,h4,blockquote,img[src|alt|width|height]');
+                $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true]);
+                $purifier = new HTMLPurifier($config);
+            }
+            return $purifier->purify($html);
+        }
+
+        // simple fallback
+        return strip_tags($html,
+            '<p><a><strong><em><ul><ol><li><br><h1><h2><h3><h4><blockquote><img>');
+    }
+
     function section_fields_from_form(string $type, array $input): array {
         $type = strtolower(trim($type));
 
@@ -1075,7 +1135,8 @@
 
         if ($type === 'text') {
             $fields['title'] = section_read_string($input, 'title');
-            $fields['content'] = section_read_string($input, 'content');
+            // content may contain HTML, sanitize it
+            $fields['content'] = sanitize_section_html($input['content'] ?? '');
             return normalize_section_fields($type, $fields);
         }
 
@@ -1088,7 +1149,7 @@
 
         if ($type === 'media-text') {
             $fields['title'] = section_read_string($input, 'title');
-            $fields['content'] = section_read_string($input, 'content');
+            $fields['content'] = sanitize_section_html($input['content'] ?? '');
             $fields['image'] = section_read_string($input, 'image');
             $fields['button_label'] = section_read_string($input, 'button_label');
             $fields['button_url'] = section_read_string($input, 'button_url');
@@ -1106,7 +1167,7 @@
             $fields['title'] = section_read_string($input, 'title');
 
             if ($type === 'features') {
-                $fields['intro'] = section_read_string($input, 'content');
+                $fields['intro'] = sanitize_section_html($input['content'] ?? '');
             }
 
             $fields['items'] = section_lines_to_items($type, section_read_string($input, 'items_lines'));
@@ -1114,7 +1175,7 @@
         }
 
         $fields['title'] = section_read_string($input, 'title');
-        $fields['content'] = section_read_string($input, 'content');
+        $fields['content'] = sanitize_section_html($input['content'] ?? '');
         return normalize_section_fields('text', $fields);
     }
 

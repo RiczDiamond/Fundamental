@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $title = sanitize_text_field($_POST['post_title'] ?? '');
     $slugInput = sanitize_text_field($_POST['post_name'] ?? '');
-    $content = sanitize_textarea_field($_POST['post_content'] ?? '');
+    // post_content is no longer editable; ignore whatever is submitted
     $status = sanitize_text_field($_POST['post_status'] ?? 'draft');
     $saveAction = sanitize_text_field($_POST['save_action'] ?? 'save');
     $submittedTypes = $_POST['section_type'] ?? [];
@@ -142,11 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             create_post_revision($link, $page, $userId, 'update');
 
-            $updateStmt = $link->prepare("\n                UPDATE posts\n                SET post_title = :title,\n                    post_name = :slug,\n                    post_content = :content,\n                    post_status = :status,\n                    post_modified = NOW()\n                WHERE ID = :id\n                  AND post_type = 'page'\n                LIMIT 1\n            ");
+            $updateStmt = $link->prepare("\n                UPDATE posts\n                SET post_title = :title,\n                    post_name = :slug,\n                    post_status = :status,\n                    post_modified = NOW()\n                WHERE ID = :id\n                  AND post_type = 'page'\n                LIMIT 1\n            ");
             $updateStmt->execute([
                 'title' => $title,
                 'slug' => $slug,
-                'content' => $content,
                 'status' => $status,
                 'id' => $pageId,
             ]);
@@ -159,7 +158,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $page['post_title'] = $title;
     $page['post_name'] = $slug;
-    $page['post_content'] = $content;
     $page['post_status'] = $status;
     $sections = $normalizedSections;
 }
@@ -191,6 +189,8 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pagina bewerken</title>
+    <!-- wysiwyg editor (local TinyMCE copy) -->
+    <script src="<?php echo BASE_URL; ?>/js/tinymce/js/tinymce/tinymce.min.js"></script>
     <style>
         :root { --bg:#f5f7fb; --card:#fff; --line:#e2e8f0; --text:#334155; --accent:#0f766e; --danger:#b91c1c; }
         * { box-sizing: border-box; }
@@ -273,8 +273,6 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
             <label for="post_name">Slug</label>
             <input id="post_name" name="post_name" type="text" value="<?php echo esc_html((string) $page['post_name']); ?>" placeholder="bijv. over-ons">
 
-            <label for="post_content">Inhoud</label>
-            <textarea id="post_content" name="post_content"><?php echo esc_html((string) $page['post_content']); ?></textarea>
             <p class="hint">Media selecteren: open <a href="/dashboard/media" target="_blank" rel="noopener">Media Library</a> of kies een URL uit de suggesties bij Image URL velden.</p>
 
             <label for="post_status">Status</label>
@@ -323,7 +321,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                             <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][quote]" value="<?php echo esc_html($formFields['quote']); ?>"></div>
                             <div class="field-wrap" data-key="author"><label>Author</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][author]" value="<?php echo esc_html($formFields['author']); ?>"></div>
                             <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][role]" value="<?php echo esc_html($formFields['role']); ?>"></div>
-                            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea name="section_fields[<?php echo (int) $index; ?>][content]"><?php echo esc_html($formFields['content']); ?></textarea></div>
+                            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" name="section_fields[<?php echo (int) $index; ?>][content]"><?php echo esc_html($formFields['content']); ?></textarea></div>
                             <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea name="section_fields[<?php echo (int) $index; ?>][items_lines]" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"><?php echo esc_html($formFields['items_lines']); ?></textarea></div>
                         </div>
                     </div>
@@ -423,7 +421,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
             <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" data-name="quote"></div>
             <div class="field-wrap" data-key="author"><label>Author</label><input type="text" data-name="author"></div>
             <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" data-name="role"></div>
-            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea data-name="content"></textarea></div>
+            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" data-name="content"></textarea></div>
             <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea data-name="items_lines" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"></textarea></div>
         </div>
     </div>
@@ -473,6 +471,8 @@ function addSection() {
     });
 
     list.appendChild(clone);
+    // ensure wysiwyg editors are initialised for any textarea inside the new fragment
+    initWYSIWYG(clone);
     list.setAttribute('data-next-index', String(nextIndex + 1));
 
     var lastCard = list.querySelector('.section-card:last-child');
@@ -498,6 +498,34 @@ document.querySelectorAll('#sections-list .section-card').forEach(function (card
     if (select) {
         select.addEventListener('change', function () { refreshSectionFields(card); });
     }
+});
+
+// initialize/refresh wysiwyg editor instances
+function initWYSIWYG(root) {
+    root = root || document;
+    if (typeof tinymce === 'undefined') {
+        return;
+    }
+    root.querySelectorAll('textarea.wysiwyg').forEach(function(el){
+        if (!el.classList.contains('tox-initialized')) {
+            tinymce.init({
+                target: el,
+                menubar: false,
+                branding: false,
+                license_key: 'gpl',
+                plugins: 'link image lists code',
+                toolbar: 'undo redo | bold italic | bullist numlist | link image | code',
+                height: 200,
+                setup: function(editor) {
+                    editor.on('Change', function() { editor.save(); });
+                }
+            });
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    initWYSIWYG();
 });
 </script>
 </body>

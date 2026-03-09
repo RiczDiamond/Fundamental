@@ -74,6 +74,15 @@ if (!function_exists('component_rich_text')) {
             return;
         }
 
+        // make sure the HTML is safe before outputting
+        if (function_exists('sanitize_section_html')) {
+            $value = sanitize_section_html($value);
+        } else {
+            // fallback to a minimal whitelist
+            $value = strip_tags($value,
+                '<p><a><strong><em><ul><ol><li><br><h1><h2><h3><h4><blockquote><img>');
+        }
+
         $safeTag = strtolower(trim($tag));
         $allowed = ['div', 'section', 'article'];
 

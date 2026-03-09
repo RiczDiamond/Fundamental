@@ -64,23 +64,13 @@ if (!isset($page) || empty($page)) {
 }
 
 $pageTitle = esc_html((string) ($page['post_title'] ?? 'Contact'));
-$pageContent = (string) ($page['post_content'] ?? '');
+// page_content is ignored; layout is driven by flexible sections
 $sections = get_page_sections($link, (int) $page['ID']);
 ?>
 
 <article class="contact-page">
-	<section class="contact-hero">
-		<!-- <h1><?php echo $pageTitle; ?></h1> -->
-		<?php if ($pageContent !== ''): ?>
-			<div class="contact-intro"><?php echo $pageContent; ?></div>
-		<?php else: ?>
-			<p class="contact-intro">Stuur ons een bericht. We reageren meestal binnen 1 werkdag.</p>
-		<?php endif; ?>
-	</section>
 
-	<?php if (!empty($sections)): ?>
 		<?php render_flexible_sections($sections); ?>
-	<?php endif; ?>
 
 	<section class="contact-form-section">
 		<?php if ($contactNotice !== ''): ?>

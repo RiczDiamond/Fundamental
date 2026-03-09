@@ -7,6 +7,41 @@ if (!is_user_logged_in()) {
 $message = '';
 $error = '';
 
+// handle delete request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && sanitize_text_field($_POST['intent'] ?? '') === 'delete') {
+    if (!mol_require_valid_nonce('media_delete')) {
+        $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
+    } else {
+        $delId = absint($_POST['id'] ?? 0);
+        if ($delId < 1) {
+            $error = 'Ongeldig ID.';
+        } else {
+            // load attached file path
+            $stmt = $link->prepare("SELECT guid FROM posts WHERE ID = :id AND post_type = 'attachment' LIMIT 1");
+            $stmt->execute(['id'=>$delId]);
+            $guid = $stmt->fetchColumn();
+            if ($guid) {
+                // remove file from disk if possible
+                $meta = get_post_meta($link, $delId, '_mol_attached_file');
+                if (is_string($meta) && $meta !== '') {
+                    $file = __DIR__ . '/../public/' . ltrim($meta, '/');
+                    if (is_file($file)) {
+                        @unlink($file);
+                    }
+                }
+                // delete post and meta
+                $del = $link->prepare("DELETE FROM postmeta WHERE post_id = :id");
+                $del->execute(['id'=>$delId]);
+                $del2 = $link->prepare("DELETE FROM posts WHERE ID = :id AND post_type = 'attachment' LIMIT 1");
+                $del2->execute(['id'=>$delId]);
+                $message = 'Media verwijderd.';
+            } else {
+                $error = 'Media niet gevonden.';
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && sanitize_text_field($_POST['intent'] ?? '') === 'upload') {
     if (!mol_require_valid_nonce('media_upload')) {
         $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
@@ -214,6 +249,12 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                             <span>ID: <?php echo (int) $item['ID']; ?></span>
                             <div class="url"><?php echo esc_html($url); ?></div>
                             <button class="btn btn-ghost" type="button" onclick="copyUrl('<?php echo esc_attr($url); ?>')">Kopieer URL</button>
+                            <form method="post" style="display:inline-block;" onsubmit="return confirm('Weet je zeker dat je dit bestand wilt verwijderen?');">
+                                <?php mol_nonce_field('media_delete'); ?>
+                                <input type="hidden" name="intent" value="delete">
+                                <input type="hidden" name="id" value="<?php echo (int) $item['ID']; ?>">
+                                <button class="btn btn-ghost" type="submit" style="margin-left:4px;">Verwijderen</button>
+                            </form>
                         </div>
                     </article>
                 <?php endforeach; ?>

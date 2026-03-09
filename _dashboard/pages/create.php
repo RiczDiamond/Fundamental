@@ -11,7 +11,7 @@ $error = '';
 $form = [
     'post_title' => '',
     'post_name' => '',
-    'post_content' => '',
+    // post_content field is deprecated; content lives in sections
     'post_status' => 'draft',
     'with_starter_sections' => '1',
 ];
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $form['post_title'] = sanitize_text_field($_POST['post_title'] ?? '');
     $form['post_name'] = sanitize_text_field($_POST['post_name'] ?? '');
-    $form['post_content'] = sanitize_textarea_field($_POST['post_content'] ?? '');
+    // ignore post_content from the form
     $form['post_status'] = sanitize_text_field($_POST['post_status'] ?? 'draft');
     $form['with_starter_sections'] = isset($_POST['with_starter_sections']) ? '1' : '0';
 
@@ -61,11 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $guid = '/' . $slug;
 
-        $insertStmt = $link->prepare("\n            INSERT INTO posts (\n                post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,\n                post_status, comment_status, ping_status, post_password, post_name, to_ping, pinged,\n                post_modified, post_modified_gmt, post_content_filtered, post_parent, guid,\n                menu_order, post_type, post_mime_type, comment_count\n            ) VALUES (\n                :post_author, NOW(), NOW(), :post_content, :post_title, '',\n                :post_status, 'closed', 'closed', '', :post_name, '', '',\n                NOW(), NOW(), '', 0, :guid,\n                0, 'page', '', 0\n            )\n        ");
+        $insertStmt = $link->prepare("\n            INSERT INTO posts (\n                post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,\n                post_status, comment_status, ping_status, post_password, post_name, to_ping, pinged,\n                post_modified, post_modified_gmt, post_content_filtered, post_parent, guid,\n                menu_order, post_type, post_mime_type, comment_count\n            ) VALUES (\n                :post_author, NOW(), NOW(), '', :post_title, '',\n                :post_status, 'closed', 'closed', '', :post_name, '', '',\n                NOW(), NOW(), '', 0, :guid,\n                0, 'page', '', 0\n            )\n        ");
 
         $insertStmt->execute([
             'post_author' => $userId,
-            'post_content' => $form['post_content'],
             'post_title' => $form['post_title'],
             'post_status' => $form['post_status'],
             'post_name' => $slug,
@@ -90,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'type' => 'text',
                         'fields' => [
                             'title' => 'Inhoud',
-                            'content' => $form['post_content'] !== '' ? $form['post_content'] : 'Start hier met de inhoud van je pagina.',
+                            'content' => '',
                         ],
                     ],
                 ];
@@ -177,8 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="post_name">Slug (optioneel)</label>
                         <input id="post_name" name="post_name" type="text" value="<?php echo esc_attr($form['post_name']); ?>" placeholder="bijv. over-ons">
 
-                        <label for="post_content">Inhoud</label>
-                        <textarea id="post_content" name="post_content"><?php echo esc_textarea($form['post_content']); ?></textarea>
 
                         <label for="post_status">Status</label>
                         <select id="post_status" name="post_status">

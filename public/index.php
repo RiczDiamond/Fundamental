@@ -112,6 +112,17 @@
         }
     }
 
+    // serve existing static files directly (js/css/images etc.)
+    $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+    $staticPath = realpath(__DIR__ . $requestUri);
+    if ($staticPath !== false && is_file($staticPath) && str_starts_with($staticPath, realpath(__DIR__))) {
+        $mime = mime_content_type($staticPath) ?: 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('Cache-Control: public, max-age=31536000');
+        readfile($staticPath);
+        exit;
+    }
+
     mol_auth_bootstrap($link);
 
     // Lightweight request debug logging to help diagnose redirect/cookie issues.
