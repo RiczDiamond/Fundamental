@@ -19,14 +19,14 @@
 
 		on_scroll();
 
-		if(path != '/') {
-			var anchor = $('#menu a[href="'+path+'"]');
-			title = anchor.html();
-			anchor.addClass('active');
-			document.title = title;
-		} else {
-			$('#menu a[href="/"]').addClass('active');
-		}
+		// if(path != '/') {
+		// 	var anchor = $('#menu a[href="'+path+'"]');
+		// 	title = anchor.html();
+		// 	anchor.addClass('active');
+		// 	document.title = title;
+		// } else {
+		// 	$('#menu a[href="/"]').addClass('active');
+		// }
 
 		window.onpopstate = function(e){
 			if(e.state){
@@ -37,7 +37,7 @@
 			}
 		};
 
-		window.history.replaceState({'html':content,'pageTitle':title},title);
+		// window.history.replaceState({'html':content,'pageTitle':title},title);
 
 		$('a.logo svg').children('path').each(function(index) {
 
@@ -98,6 +98,36 @@
 			if($(this).attr('name') == 'email') {
 				$('span#email').html($(this).val());
 			}
+
+		});
+
+		$document.on('submit', 'form.contact-form', function(event){
+
+			var form = $(this);
+			var button = form.find('button[type="submit"]');
+
+			if(form.hasClass('submitting')) {
+				event.preventDefault();
+				return false;
+			}
+
+			form.addClass('submitting');
+
+			if(button.length) {
+				button.data('original-label', button.text());
+				button.text('Versturen...');
+				button.prop('disabled', true);
+			}
+
+			setTimeout(function(){
+				if(form.hasClass('submitting')) {
+					form.removeClass('submitting');
+					if(button.length) {
+						button.prop('disabled', false);
+						button.text(button.data('original-label') || 'Verstuur bericht');
+					}
+				}
+			}, 8000);
 
 		});
 

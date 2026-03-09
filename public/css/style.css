@@ -241,7 +241,7 @@ footer div.column a.social svg { width: 15px; vertical-align: top; margin-top: 6
 	div#menu.expanded { max-width: 100%; }
 	div#menu ul { display: inline-block; margin-top: 40px; float: none; }
 	div#menu ul li:after { display: none; height: 25px; background: rgba(255,255,255,.3); }
-	div#menu ul li:first-child { display: none; }
+	/* div#menu ul li:first-child { display: none; } */
 	div#menu ul li a { padding: 0 14px; font-size: 16px; font-weight: 500; font-family: 'Graphik', sans-serif; }
 	div#menu a.menu { opacity: 0; margin-top: -100px; }	
 	div#menu.expanded a.menu { opacity: 1; transition: all .2s; margin-top: 0 }
@@ -433,6 +433,19 @@ section.offerte div.offerte div#contactinfo span#companyname { font-weight: 700;
 	
 }
 
+ul.dynamic-menu { display: inline-block !important; margin-top: 40px; float: none; }
+ul.dynamic-menu li { display: inline-block; }
+ul.dynamic-menu li a { padding: 0 14px; font-size: 16px; font-weight: 500; font-family: 'Graphik', sans-serif; }
+ul.dynamic-menu ul.dynamic-menu { display: block !important; float: none; margin: 6px 0 0 14px; }
+ul.dynamic-menu ul.dynamic-menu li { display: block; }
+ul.dynamic-menu ul.dynamic-menu li a { font-size: 14px; padding: 2px 0; color: rgba(0,0,0,.7); }
+
+.footer-menu { list-style: none; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; border-top: 1px solid #f2f4f7; margin-top: 30px; padding-top: 20px; }
+.footer-menu li { display: inline-block; }
+.footer-menu .footer-menu { border-top: 0; margin-top: 6px; padding-top: 0; justify-content: flex-start; }
+.footer-menu a { font-size: 14px; color: rgba(0,0,0,.75); }
+.footer-menu a:hover { color: #ff3333; }
+
 @media all and (max-width: 400px) {
 	h1 { font-size: 27px !important; line-height: 38px !important; }
 	footer div.column { font-size: 12px; }
@@ -441,4 +454,346 @@ section.offerte div.offerte div#contactinfo span#companyname { font-weight: 700;
 
 @media all and (max-height: 550px) {
 	body.menu-open footer { display: none !important; }
+}
+
+/* Reusable section styles for dynamic page builder sections */
+.section-hero,
+.section-text,
+.section-cta,
+.section-features,
+.section-faq,
+.section-media-text,
+.section-stats,
+.section-testimonial {
+	max-width: 1000px;
+	margin: 60px auto;
+	padding: 0 50px;
+	box-sizing: border-box;
+}
+
+.section-hero h2 {
+	font-size: 52px;
+	line-height: 1.15;
+	margin-bottom: 20px;
+}
+
+.section-hero p {
+	font-size: 22px;
+	line-height: 1.6;
+	max-width: 760px;
+	color: rgba(0,0,0,.75);
+}
+
+.section-text h3,
+.section-cta h3,
+.section-features h3,
+.section-faq h3,
+.section-media-text h3,
+.section-stats h3 {
+	font-size: 34px;
+	line-height: 1.25;
+	margin-bottom: 18px;
+}
+
+.section-text div,
+.section-media-text div,
+.section-faq p,
+.section-features p {
+	font-size: 18px;
+	line-height: 1.8;
+	color: rgba(0,0,0,.84);
+}
+
+.section-cta {
+	background: #15212d;
+	border-radius: 14px;
+	padding: 45px 50px;
+	color: #fff;
+}
+
+.section-cta h3 {
+	color: #fff;
+	margin-bottom: 16px;
+}
+
+.section-cta a {
+	display: inline-block;
+	padding: 12px 20px;
+	border-radius: 8px;
+	background: #ff3333;
+	color: #fff;
+	font-weight: 700;
+}
+
+.section-cta a:hover {
+	background: #fff;
+	color: #15212d;
+}
+
+.section-features ul {
+	list-style: none;
+	margin: 24px 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.section-features li {
+	background: #fff;
+	border: 1px solid #eceff4;
+	border-radius: 10px;
+	padding: 14px 16px;
+	font-weight: 500;
+}
+
+.section-faq details {
+	border: 1px solid #eceff4;
+	border-radius: 10px;
+	padding: 14px 16px;
+	margin-bottom: 10px;
+	background: #fff;
+}
+
+.section-faq summary {
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.section-faq details p {
+	margin-top: 12px;
+}
+
+.section-media-text img {
+	width: 100%;
+	height: auto;
+	display: block;
+	border-radius: 12px;
+	margin: 10px 0 20px;
+}
+
+.section-media-text a {
+	display: inline-block;
+	margin-top: 16px;
+	font-weight: 700;
+	color: #ff3333;
+}
+
+.section-stats .stats-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+	margin-top: 20px;
+}
+
+.section-stats .stat-item {
+	background: #fff;
+	border-radius: 10px;
+	border: 1px solid #eceff4;
+	padding: 18px;
+}
+
+.section-stats .stat-item strong {
+	display: block;
+	font-size: 34px;
+	line-height: 1.1;
+	margin-bottom: 6px;
+	color: #ff3333;
+	font-family: 'Graphik', sans-serif;
+}
+
+.section-testimonial {
+	max-width: 860px;
+	text-align: center;
+}
+
+.section-testimonial blockquote {
+	font-family: 'Merriweather', serif;
+	font-size: 32px;
+	line-height: 1.5;
+	font-style: italic;
+	color: rgba(0,0,0,.82);
+	margin-bottom: 20px;
+}
+
+.section-testimonial p {
+	font-size: 17px;
+	color: rgba(0,0,0,.6);
+}
+
+/* Contact page template styles */
+.contact-page {
+	max-width: 920px;
+	margin: 60px auto;
+	padding: 0 50px;
+	box-sizing: border-box;
+}
+
+.contact-hero h1 {
+	font-size: 44px;
+	line-height: 1.2;
+	margin-bottom: 16px;
+}
+
+.contact-intro {
+	font-size: 18px;
+	line-height: 1.8;
+	color: rgba(0,0,0,.78);
+}
+
+.contact-form-section {
+	margin-top: 26px;
+	padding: 28px;
+	background: #fff;
+	border: 1px solid #eceff4;
+	border-radius: 12px;
+}
+
+.contact-notice,
+.contact-error {
+	border-radius: 8px;
+	padding: 10px 12px;
+	margin-bottom: 12px;
+	font-size: 14px;
+}
+
+.contact-notice {
+	background: #ecfdf5;
+	border: 1px solid #a7f3d0;
+	color: #065f46;
+}
+
+.contact-error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #991b1b;
+}
+
+.contact-form label {
+	display: block;
+	font-size: 14px;
+	font-weight: 600;
+	margin: 12px 0 6px;
+}
+
+.contact-form input,
+.contact-form textarea {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	font: inherit;
+	color: inherit;
+	box-sizing: border-box;
+}
+
+.contact-form textarea {
+	resize: vertical;
+	min-height: 140px;
+}
+
+.contact-form button {
+	margin-top: 14px;
+	padding: 12px 18px;
+	border: 0;
+	border-radius: 8px;
+	background: #15212d;
+	color: #fff;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.contact-form button:hover {
+	background: #ff3333;
+}
+
+.contact-honeypot {
+	position: absolute;
+	left: -9999px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+@media all and (max-width: 900px) {
+	.section-hero,
+	.section-text,
+	.section-cta,
+	.section-features,
+	.section-faq,
+	.section-media-text,
+	.section-stats,
+	.section-testimonial {
+		padding: 0 30px;
+		margin: 45px auto;
+	}
+
+	.section-hero h2 {
+		font-size: 40px;
+	}
+
+	.contact-page {
+		padding: 0 30px;
+	}
+
+	.contact-hero h1 {
+		font-size: 36px;
+	}
+
+	.contact-form-section {
+		padding: 22px;
+	}
+
+	.section-stats .stats-grid,
+	.section-features ul {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media all and (max-width: 520px) {
+	.section-hero h2 {
+		font-size: 32px;
+	}
+
+	.contact-page {
+		padding: 0 20px;
+	}
+
+	.contact-hero h1 {
+		font-size: 30px;
+	}
+
+	.contact-intro {
+		font-size: 16px;
+		line-height: 1.7;
+	}
+
+	.contact-form-section {
+		padding: 18px;
+	}
+
+	.section-hero p,
+	.section-text div,
+	.section-media-text div,
+	.section-faq p,
+	.section-features p {
+		font-size: 16px;
+		line-height: 1.7;
+	}
+
+	.section-cta {
+		padding: 30px;
+	}
+
+	.section-text h3,
+	.section-cta h3,
+	.section-features h3,
+	.section-faq h3,
+	.section-media-text h3,
+	.section-stats h3 {
+		font-size: 28px;
+	}
+
+	.section-testimonial blockquote {
+		font-size: 24px;
+	}
 }

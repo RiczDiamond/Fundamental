@@ -4,13 +4,14 @@
         die('Direct access not allowed');
     }
 
-    if ( $url[0] === 'login') {
-
-        require_once 'login.php';
+    if ( isset($url[0]) && $url[0] === 'login') {
+        require_once __DIR__ . '/login.php';
+        return;
     }
 
     if ( isset($url[0]) && $url[0] === 'dashboard' ) {
-        
-        require_once 'dashboard.php';
-
+        require_once __DIR__ . '/dashboard.php';
+        return;
     }
+
+    wp_safe_redirect('/login');

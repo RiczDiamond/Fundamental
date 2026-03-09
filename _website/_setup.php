@@ -11,8 +11,8 @@
     $posts = [];
 
     if ($requestedSlug === 'archive') {
-        $archiveType = (string) getParam($params, 'type', 'page');
-        $limit = (int) getParam($params, 'limit', 20);
+        $archiveType = (string) get_query_var('type', 'page');
+        $limit = (int) get_query_var('limit', 20);
         $limit = max(1, min(100, $limit));
 
         $posts = get_posts($link, $archiveType, $limit);
@@ -20,7 +20,17 @@
         $templateCandidates[] = 'archive.php';
         $templateCandidates[] = 'index.php';
     } else {
+        if ($requestedSlug === 'home' && isset($_GET['url']) && trim((string) $_GET['url']) !== '') {
+            wp_safe_redirect(get_permalink_by_slug('home'), 301);
+        }
+
         $resolvedPage = resolve_post_by_slug($link, $requestedSlug, 'page');
+        $resolvedType = 'page';
+
+        if (!$resolvedPage) {
+            $resolvedPage = resolve_post_by_slug($link, $requestedSlug, 'post');
+            $resolvedType = 'post';
+        }
 
         if (!$resolvedPage) {
             http_response_code(404);
@@ -30,15 +40,19 @@
             $page = $resolvedPage['post'];
 
             if (!empty($resolvedPage['matched_old_slug'])) {
-                $target = BASE_URL . '/?url=' . rawurlencode((string) $page['post_name']);
-                header('Location: ' . $target, true, 301);
-                exit;
+                $target = get_post_permalink($page);
+                wp_safe_redirect($target, 301);
             }
 
             $safeSlug = preg_replace('/[^a-z0-9\-]/i', '', (string) $page['post_name']);
 
-            if ($safeSlug === 'home') {
+            if ($resolvedType === 'page' && $safeSlug === 'home') {
                 $templateCandidates[] = 'front-page.php';
+            }
+
+            if ($resolvedType === 'post') {
+                $templateCandidates[] = 'single-' . $safeSlug . '.php';
+                $templateCandidates[] = 'single.php';
             }
 
             $templateCandidates[] = 'page-' . $safeSlug . '.php';

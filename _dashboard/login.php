@@ -2,21 +2,28 @@
 
     session_start();
 
+    if (!empty($_SESSION['user_id'])) {
+        wp_safe_redirect('/dashboard');
+    }
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
+        if (!wp_require_valid_nonce('dashboard_login')) {
+            $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
+        }
+
+        $username = sanitize_text_field($_POST['username'] ?? '');
+        $password = (string) wp_unslash($_POST['password'] ?? '');
 
         // Haal user op
         $stmt = $link->prepare("SELECT * FROM users WHERE user_login = :username LIMIT 1");
         $stmt->execute(['username' => $username]);
         $user = $stmt->fetch();
 
-        if ($user && password_verify($password, $user['user_pass'])) {
+        if (empty($error) && $user && password_verify($password, $user['user_pass'])) {
             // Login succesvol
-            $_SESSION['user_id'] = $user['ID'];
-            $_SESSION['user_name'] = $user['user_login'];
-            header('Location: /dashboard');
-            exit;
+            $_SESSION['user_id'] = (int) ($user['id'] ?? $user['ID'] ?? 0);
+            $_SESSION['user_name'] = (string) ($user['display_name'] ?? $user['user_login'] ?? 'Gebruiker');
+            wp_safe_redirect('/dashboard');
         } else {
             $error = "Ongeldige gebruikersnaam of wachtwoord";
         }
@@ -25,7 +32,7 @@
 ?>
 
 <?php if (!empty($error)): ?>
-    <p style="color:red;"><?php echo htmlspecialchars($error); ?></p>
+    <p style="color:red;"><?php echo esc_html($error); ?></p>
 <?php endif; ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -43,6 +50,7 @@
 </head>
 <body>
     <form method="POST" action="/login">
+        <?php wp_nonce_field('dashboard_login'); ?>
         <h2>Login</h2>
         <input type="text" name="username" placeholder="Gebruikersnaam" required>
         <input type="password" name="password" placeholder="Wachtwoord" required>

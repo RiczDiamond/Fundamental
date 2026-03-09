@@ -16,11 +16,11 @@
     // ]);
     // echo "</pre>";
 
-    if ( isset($url[0]) && $url[0] === 'api' ) {
+    if (isset($url[0]) && $url[0] === 'api') {
 
         require_once '../api/_setup.php';
 
-    } else if ( isset($url[0]) && $url[0] === 'dashboard' || isset($url[0]) && $url[0] === 'login' ) {
+    } elseif (isset($url[0]) && in_array($url[0], ['dashboard', 'login'], true)) {
 
         require_once '../_dashboard/_setup.php';
 

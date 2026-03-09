@@ -1,6 +1,106 @@
 <?php
 
+    session_start();
+
 	$pageTitle = 'Fundamental';
+    $styleVersion = time();
+    $styleFile = __DIR__ . '/../../public/css/style.css';
+    $headerMenuItems = [
+        ['label' => 'Home', 'url' => '/', 'data_page' => 'home', 'parent_id' => ''],
+        ['label' => 'Werk', 'url' => '/werk/', 'data_page' => 'werk', 'parent_id' => ''],
+        ['label' => 'Diensten', 'url' => '/diensten/', 'data_page' => 'diensten', 'parent_id' => ''],
+        ['label' => 'Vacatures', 'url' => '/vacatures/', 'data_page' => 'vacatures', 'badge' => '4', 'parent_id' => ''],
+        ['label' => 'Contact', 'url' => '/contact/', 'data_page' => 'contact', 'parent_id' => ''],
+    ];
+
+    if (isset($link) && $link instanceof PDO) {
+        $rawHeaderMenu = get_option_value($link, 'dashboard_menu_header', '[]');
+        $decodedHeaderMenu = json_decode((string) $rawHeaderMenu, true);
+
+        if (is_array($decodedHeaderMenu) && !empty($decodedHeaderMenu)) {
+            $parsedHeaderMenuItems = [];
+
+            foreach ($decodedHeaderMenu as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+
+                $label = trim((string) ($item['label'] ?? ''));
+                $url = trim((string) ($item['url'] ?? ''));
+                $id = trim((string) ($item['id'] ?? ''));
+
+                if ($label === '' || $url === '') {
+                    continue;
+                }
+
+                $dataPage = trim((string) ($item['data_page'] ?? ''));
+                if ($dataPage === '') {
+                    $path = trim((string) parse_url($url, PHP_URL_PATH));
+                    $dataPage = trim($path, '/');
+                    if ($dataPage === '') {
+                        $dataPage = 'home';
+                    }
+                }
+
+                $badge = trim((string) ($item['badge'] ?? ''));
+                $parentId = trim((string) ($item['parent_id'] ?? ''));
+
+                // Treat common root markers as top-level for safer rendering.
+                if ($parentId === '0' || strtolower($parentId) === 'root' || strtolower($parentId) === 'null') {
+                    $parentId = '';
+                }
+
+                // Keep home/root URL visible as a top-level item.
+                if ($url === '/') {
+                    $parentId = '';
+                    if ($dataPage === '') {
+                        $dataPage = 'home';
+                    }
+                }
+
+                $parsedHeaderMenuItems[] = [
+                    'id' => $id,
+                    'label' => $label,
+                    'url' => $url,
+                    'data_page' => $dataPage,
+                    'badge' => $badge,
+                    'parent_id' => $parentId,
+                ];
+            }
+
+            if (!empty($parsedHeaderMenuItems)) {
+                $headerMenuItems = $parsedHeaderMenuItems;
+            }
+        }
+    }
+
+    $headerMenuDisplayItems = [];
+    $knownIds = [];
+
+    foreach ($headerMenuItems as $menuItem) {
+        $id = trim((string) ($menuItem['id'] ?? ''));
+        if ($id !== '') {
+            $knownIds[$id] = true;
+        }
+    }
+
+    foreach ($headerMenuItems as $menuItem) {
+        $parentId = trim((string) ($menuItem['parent_id'] ?? ''));
+        if ($parentId === '' || !isset($knownIds[$parentId])) {
+            $headerMenuDisplayItems[] = $menuItem;
+        }
+    }
+
+    if (empty($headerMenuDisplayItems)) {
+        $headerMenuDisplayItems = $headerMenuItems;
+    }
+
+    if (is_file($styleFile)) {
+        $mtime = filemtime($styleFile);
+        if ($mtime !== false) {
+            $styleVersion = (int) $mtime;
+        }
+    }
 
 	if (isset($page) && is_array($page) && !empty($page['post_title'])) {
 		$pageTitle = (string) $page['post_title'];
@@ -11,10 +111,10 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
+    <title><?php echo esc_html($pageTitle); ?></title>
 
 
- 	<link href="/css/style.css" rel="stylesheet" type="text/css" media="all">
+    <link href="/css/style.css?v=<?php echo $styleVersion; ?>" rel="stylesheet" type="text/css" media="all">
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700" rel="stylesheet">
 	<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet"> 
 
@@ -32,6 +132,29 @@
     <div class="bar middle"></div>
     <div class="bar last"></div>
 	
+    <!-- <?php if (!empty($_SESSION['user_id'])): ?>
+
+        <div style="position:fixed;top:0;left:0;width:100%;background:#23282d;color:#fff;font-family:sans-serif;font-size:14px;z-index:9999;">
+            
+            <div style="max-width:1200px;margin:auto;display:flex;justify-content:space-between;padding:8px 15px;">
+
+                <div>
+                    <span style="margin-right:15px;">
+                        Hallo, <?php echo esc_html($_SESSION['user_name']); ?>
+                    </span>
+
+                    <a href="/dashboard" style="color:#ddd;text-decoration:none;margin-right:15px;">Dashboard</a>
+                    <a href="/dashboard/pages" style="color:#ddd;text-decoration:none;margin-right:15px;">Pages</a>
+                    <a href="/logout" style="color:#ddd;text-decoration:none;">Logout</a>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div style="height:32px;"></div>
+
+    <?php endif; ?> -->
     
     <header>
 
@@ -105,14 +228,22 @@
                     </svg>
                 </div>
             </a>
-           <!-- <ul>
-                <li><a href="/" data-page="home">Home</a></li>
-                <li><a href="/werk/" data-page="werk">Werk</a></li>
-                <li><a href="/diensten/" data-page="diensten">Diensten</a></li>
-                <li><a href="/vacatures/" data-page="vacatures">Vacatures<span class="number">4</span></a></li>
-                <li><a href="/contact/" data-page="contact">Contact</a></li>
+
+            <ul>
+                <?php foreach ($headerMenuDisplayItems as $menuItem): ?>
+                    <li>
+                        <a href="<?php echo esc_url((string) $menuItem['url']); ?>" data-page="<?php echo esc_attr((string) ($menuItem['data_page'] ?? '')); ?>">
+                            <?php echo esc_html((string) $menuItem['label']); ?>
+                            <?php if (!empty($menuItem['badge'])): ?>
+                                <span class="number"><?php echo esc_html((string) $menuItem['badge']); ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
             </ul>
         </div>
+
+        <!--
 
         <ul class="language">
             <li><a href="/" class="active" data-language="NL">NL</a></li>
