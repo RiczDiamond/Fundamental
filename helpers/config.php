@@ -1,5 +1,55 @@
 <?php
 
+if (!function_exists('cfg_load_env_file')) {
+    /**
+     * Minimal .env loader for local development.
+     */
+    function cfg_load_env_file(string $envFilePath): void {
+        if (!is_file($envFilePath) || !is_readable($envFilePath)) {
+            return;
+        }
+
+        $lines = file($envFilePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim((string) $line);
+
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $name = trim($parts[0]);
+            $value = trim($parts[1]);
+
+            if ($name === '' || preg_match('/^[A-Z0-9_]+$/', $name) !== 1) {
+                continue;
+            }
+
+            if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+                $value = substr($value, 1, -1);
+            }
+
+            if (getenv($name) !== false) {
+                continue;
+            }
+
+            putenv($name . '=' . $value);
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+}
+
+cfg_load_env_file(__DIR__ . '/../.env');
+
 if (!function_exists('cfg_env')) {
     function cfg_env(string $key, ?string $default = null): ?string {
         $value = getenv($key);
