@@ -8,7 +8,7 @@
     } else {
         $sections = get_page_sections($link, (int) $page['ID']);
 
-        echo '<section>';
+        // echo '<div>';
         // echo '<h1>' . esc_html((string) $page['post_title']) . '</h1>';
 
         if (!empty($sections)) {
@@ -17,7 +17,7 @@
             echo (string) $page['post_content'];
         }
 
-        echo '</section>';
+        // echo '</div>';
     }
 
     require __DIR__ . '/../partials/footer.php';

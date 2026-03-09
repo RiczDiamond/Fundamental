@@ -7,7 +7,11 @@ $buttonLabel = (string) ($section['fields']['button_label'] ?? '');
 $buttonUrl = (string) ($section['fields']['button_url'] ?? '');
 
 component_section_open('section-media-text');
-component_heading($title, 'h3');
+?>
+
+<div class="container">
+    <?php
+    component_heading($title, 'h3');
 
 if ($image !== '') {
     echo '<p><img src="' . component_escape_attr($image) . '" alt="' . component_escape_attr($title) . '"></p>';
@@ -20,5 +24,9 @@ if ($buttonLabel !== '' && $buttonUrl !== '') {
     component_link($buttonUrl, $buttonLabel);
     echo '</p>';
 }
+?>
 
+</div>
+
+<?php
 component_section_close();
