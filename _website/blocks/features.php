@@ -1,32 +1,53 @@
 <?php
 
-$title = (string) ($section['fields']['title'] ?? 'Features');
-$intro = (string) ($section['fields']['intro'] ?? '');
-$items = $section['fields']['items'] ?? [];
+/**
+ * Features section: titre plus puntjes.
+ *
+ * When the special flag is set this file returns its schema instead of
+ * rendering, so the dashboard knows which fields to present.
+ */
 
-    if (is_string($items)) {
-        $items = preg_split('/\r\n|\r|\n/', $items) ?: [];
-    }
+$block_schema = [
+    'hint'=>'Gebruikt: title, content, items',
+    'fields'=>[
+        'title'=>['type'=>'string','default'=>''],
+        'content'=>['type'=>'html','default'=>''],
+        'items'=>['type'=>'list','default'=>[]],
+    ],
+];
+if (!empty($GLOBALS['_BLOCK_SCHEMA_ONLY'])) {
+    return $block_schema;
+}
 
-    if (!is_array($items) || $items === []) {
-        $items = ['Snelle implementatie', 'Flexibele opbouw', 'Makkelijk te beheren'];
-    }
+$fields = array_merge(
+    get_block_defaults('features'),
+    (array) ($section['fields'] ?? [])
+);
 
-component_section_open('section-features');
+$title = (string) $fields['title'];
+$intro = (string) $fields['content'];
+$items = is_array($fields['items']) ? $fields['items'] : [];
+
+component_section_open('section-features', $section['attrs'] ?? []);
+echo '<div class="container services">';
+echo '<div class="block">';
 component_heading($title, 'h3');
-component_paragraph($intro);
+component_rich_text($intro, 'div');
 
-    echo '<ul>';
-
-    foreach ($items as $item) {
-        $label = trim((string) $item);
-
-        if ($label === '') {
-            continue;
+    if ($items !== []) {
+        echo '<ul class="services-list">';
+        foreach ($items as $item) {
+            $label = trim((string) $item);
+            if ($label === '') {
+                continue;
+            }
+            echo '<li>';
+            component_rich_text($label, 'span');
+            echo '</li>';
         }
-
-        echo '<li>' . component_escape_html($label) . '</li>';
+        echo '</ul>';
     }
 
-    echo '</ul>';
-    component_section_close();
+    echo '</div>'; // .block
+    echo '</div>'; // .container
+component_section_close();

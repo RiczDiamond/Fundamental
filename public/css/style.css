@@ -22,7 +22,13 @@
 		url('../fonts/Graphik-Regular.svg') format('svg'); /* Legacy iOS */
 }
 
-html, body, div, h1, h2, h3, h4, h5, h6, ul, ol, dl, li, dt, dd, p, blockquote, pre, form, fieldset, table, th, td { margin: 0px; padding: 0px; }
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
 
 div#video { position: absolute; right: 50px; left: 50px; top: 0; z-index: -1; opacity: .15; width: calc(100% - 100px); overflow: hidden; }
 div#video:before { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, transparent, #fff); }
@@ -50,7 +56,7 @@ span.copy:hover { background: #fefce7; padding: 0 3px; }
 span.copied { background: #fdf9c4 !important; padding: 0 5px !important; }
 span.copied:after { content: "gekopieërd"; position: absolute; font-size: 13px; margin-left: 10px; color: rgba(0,0,0,.2); }
 
-.container,header,footer { padding: 0 50px; max-width: 1200px; margin: 0 auto; }
+section,header,footer { padding: 0 50px; max-width: 1200px; margin: 0 auto; }
 
 a[href^="http"] { background-position: top right -20px; }
 a[href^="http"]:hover { padding-right: 14px; background: url('data:image/svg+xml;utf8,<svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="external-link-alt" class="svg-inline--fa fa-external-link-alt fa-w-16" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M432,320H400a16,16,0,0,0-16,16V448H64V128H208a16,16,0,0,0,16-16V80a16,16,0,0,0-16-16H48A48,48,0,0,0,0,112V464a48,48,0,0,0,48,48H400a48,48,0,0,0,48-48V336A16,16,0,0,0,432,320ZM488,0h-128c-21.37,0-32.05,25.91-17,41l35.73,35.73L135,320.37a24,24,0,0,0,0,34L157.67,377a24,24,0,0,0,34,0L435.28,133.32,471,169c15,15,41,4.5,41-17V24A24,24,0,0,0,488,0Z"></path></svg>') no-repeat top right; background-size: 10px; }
@@ -459,18 +465,11 @@ ul.dynamic-menu ul.dynamic-menu li a { font-size: 14px; padding: 2px 0; color: r
 
 /* Reusable section styles for dynamic page builder sections */
 
-.section-hero p span { font-weight: 500; padding-right: 14px; color: #fff; margin-right: 3px; background: url('../img/php-brands.svg') no-repeat right top 4px; text-transform: uppercase; background-size: 12px; display: inline-block; }
+/* .section-hero p span { font-weight: 500; padding-right: 14px; color: #fff; margin-right: 3px; background: url('../img/php-brands.svg') no-repeat right top 4px; text-transform: uppercase; background-size: 12px; display: inline-block; }
 .section-hero p span#html5 { background-image: url('../img/html5-brands.svg'); }
 .section-hero p span#css { background-image: url('../img/css3-alt-brands.svg'); }
 .section-hero p span#javascript { background-image: url('../img/js-square-brands.svg'); }
-.section-hero p span#php { background-size: 16px; margin-right: 0; padding-right: 18px; }
-
-.fullwidth {
-  width: 100vw; /* volle viewport breedte */
-  margin-left: calc(50% - 50vw); /* schuift het naar links */
-  margin-right: calc(50% - 50vw); /* optioneel, meestal margin-left voldoende */
-  background: #f5f5f5;
-}
+.section-hero p span#php { background-size: 16px; margin-right: 0; padding-right: 18px; } */
 
 #content { padding-inline: 15px; }
 

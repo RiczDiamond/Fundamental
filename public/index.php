@@ -1,5 +1,11 @@
 <?php
 
+    // load Composer autoloader first; this provides HTMLPurifier, PHPMailer, etc.
+    $autoloadPath = __DIR__ . '/../vendor/autoload.php';
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
     require_once '../resources/php/Helpers/url.php';
     require_once '../resources/php/Helpers/params.php';
     require_once '../resources/php/Helpers/config.php';

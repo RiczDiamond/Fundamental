@@ -726,6 +726,67 @@
      *
      * @return array<string, array<string, mixed>>
      */
+    /**
+     * Read schema definitions from each block file in `_website/blocks`.
+     *
+     * Block templates may export their schema as an array when the special
+     * `$GLOBALS['_BLOCK_SCHEMA_ONLY']` flag is set; this allows the back
+     * end to discover field lists, hints and defaults without executing the
+     * rendering code.  The schema format is intentionally flexible – a
+     * minimalist file can simply return `['fields'=>[name=>[...],...]]` and
+     * the loader will normalise it to our internal structure.
+     *
+     * @return array<string,array>
+     */
+    function load_section_schemas_from_files(): array {
+        $schemas = [];
+        $dir = dirname(__DIR__, 3) . '/_website/blocks';
+
+        // make sure our component helpers are loaded; block files sometimes
+        // call `get_block_defaults()` or other helpers even when only schema
+        // is requested, so include them first to avoid fatal errors.
+        $componentHelpers = dirname(__DIR__, 3) . '/_website/partials/components.php';
+        if (is_file($componentHelpers)) {
+            require_once $componentHelpers;
+        }
+
+        if (!is_dir($dir)) {
+            return $schemas;
+        }
+
+        foreach (glob($dir . '/*.php') as $file) {
+            // cause the file to return only its schema when included
+            $GLOBALS['_BLOCK_SCHEMA_ONLY'] = true;
+            $schema = include $file;
+            unset($GLOBALS['_BLOCK_SCHEMA_ONLY']);
+
+            if (!is_array($schema)) {
+                continue;
+            }
+
+            $name = basename($file, '.php');
+
+            // simple conversion of `fields` map to the expected shape
+            if (isset($schema['fields']) && is_array($schema['fields'])) {
+                $defaults = [];
+                foreach ($schema['fields'] as $key => $def) {
+                    $defaults[$key] = $def['default'] ?? '';
+                }
+                $schema = [
+                    'hint'          => $schema['hint'] ?? '',
+                    'editor_fields' => array_keys($schema['fields']),
+                    'data_fields'   => array_keys($schema['fields']),
+                    'defaults'      => $defaults,
+                    'sanitize'      => $schema['sanitize'] ?? [],
+                ];
+            }
+
+            $schemas[$name] = $schema;
+        }
+
+        return $schemas;
+    }
+
     function get_section_schemas(): array {
         static $schemas = null;
 
@@ -733,7 +794,12 @@
             return $schemas;
         }
 
-        $schemas = [
+        // start with any definitions embedded in block templates
+        $schemas = load_section_schemas_from_files();
+
+        // fall back to the original hard‑coded list for legacy sections
+        // that have not yet been converted
+        $hardcoded = [
             'hero' => [
                 'hint' => 'Gebruikt: headline, subline',
                 'editor_fields' => ['headline', 'subline'],
@@ -764,6 +830,21 @@
                 'editor_fields' => ['title', 'content', 'image', 'button_label', 'button_url'],
                 'data_fields' => ['title', 'content', 'image', 'button_label', 'button_url'],
             ],
+            'services' => [
+                'hint' => 'Gebruikt: title, intro, items (1 per regel)',
+                'editor_fields' => ['title', 'intro', 'items_lines'],
+                'data_fields' => ['title', 'intro', 'items'],
+            ],
+            'portfolio' => [
+                'hint' => 'Gebruikt: titel, intro en items (image|title|subject|tags per regel)',
+                'editor_fields' => ['title', 'content', 'items_lines'],
+                'data_fields' => ['title', 'content', 'items'],
+            ],
+            'case-study' => [
+                'hint' => 'Gebruikt: title, subtitle, text, link',
+                'editor_fields' => ['title', 'subtitle', 'text', 'link'],
+                'data_fields' => ['title', 'subtitle', 'text', 'link'],
+            ],
             'stats' => [
                 'hint' => 'Gebruikt: title, items (Waarde|Label per regel)',
                 'editor_fields' => ['title', 'items_lines'],
@@ -775,6 +856,9 @@
                 'data_fields' => ['quote', 'author', 'role'],
             ],
         ];
+
+        // ensure legacy schemas still exist if not defined in files
+        $schemas = array_merge($hardcoded, $schemas);
 
         // Merge in any custom/registered schemas so plugins can extend
         $custom = get_custom_section_schemas();
@@ -959,6 +1043,15 @@
             }
 
             if ($type === 'features') {
+                // TinyMCE often wraps pasted text in `<p>` elements. remove any
+                // outer paragraph and keep the inner content. later we also
+                // strip any remaining `<p>` tags after sanitization to avoid
+                // invalid HTML inside list items.
+                $line = preg_replace('#^<p[^>]*>(.*?)</p>$#i', '$1', $line);
+                $line = sanitize_section_html($line);
+                // strip any leftover paragraph tags that may have survived the
+                // purifier (e.g. if the editor inserted multiple paragraphs).
+                $line = preg_replace('#</?p[^>]*>#i', '', $line);
                 $items[] = $line;
                 continue;
             }
@@ -994,57 +1087,52 @@
             return [];
         }
 
+        $schema = get_section_schemas()[$type] ?? [];
         $safe = [];
 
-        if ($type === 'hero') {
-            $safe['headline'] = section_read_string($fields, 'headline');
-            $safe['subline'] = section_read_string($fields, 'subline');
-            return $safe;
+        // start with defaults, if any
+        if (isset($schema['defaults']) && is_array($schema['defaults'])) {
+            $safe = $schema['defaults'];
         }
 
-        if ($type === 'text') {
-            $safe['title'] = section_read_string($fields, 'title');
-            $safe['content'] = section_read_string($fields, 'content');
-            return $safe;
+        // sanitize each declared data field
+        $defaults = isset($schema['defaults']) && is_array($schema['defaults']) ? $schema['defaults'] : [];
+        foreach ($schema['data_fields'] ?? [] as $fieldName) {
+            $value = $fields[$fieldName] ?? $defaults[$fieldName] ?? '';
+            $sanitizeFn = $schema['sanitize'][$fieldName] ?? null;
+
+            // items field is allowed to be an array; skip string coercion so
+            // normalizer below can correctly process it.
+            if ($fieldName === 'items' && is_array($value)) {
+                $safe[$fieldName] = $value;
+                continue;
+            }
+
+            if (is_callable($sanitizeFn)) {
+                // some sanitizers expect (string) parameter
+                $safe[$fieldName] = $sanitizeFn($value);
+            } else {
+                $safe[$fieldName] = section_read_string(['value' => $value], 'value');
+            }
         }
 
-        if ($type === 'cta') {
-            $safe['title'] = section_read_string($fields, 'title');
-            $safe['button_label'] = section_read_string($fields, 'button_label');
-            $safe['button_url'] = section_read_string($fields, 'button_url');
-            return $safe;
+        // normalize items for list types; old helper still handles it
+        if (in_array($type, ['features', 'faq', 'stats'], true) && isset($safe['items'])) {
+            $safe['items'] = section_normalize_items($type, $safe['items']);
         }
 
-        if ($type === 'media-text') {
-            $safe['title'] = section_read_string($fields, 'title');
-            $safe['content'] = section_read_string($fields, 'content');
-            $safe['image'] = section_read_string($fields, 'image');
-            $safe['button_label'] = section_read_string($fields, 'button_label');
-            $safe['button_url'] = section_read_string($fields, 'button_url');
-            return $safe;
+        // for portfolio items convert comma-separated tags into array
+        if ($type === 'portfolio' && isset($safe['items']) && is_array($safe['items'])) {
+            foreach ($safe['items'] as &$it) {
+                if (isset($it['tags']) && is_string($it['tags'])) {
+                    $safeTags = array_filter(array_map('trim', explode(',', $it['tags'])));
+                    $it['tags'] = $safeTags;
+                }
+            }
+            unset($it);
         }
 
-        if ($type === 'testimonial') {
-            $safe['quote'] = section_read_string($fields, 'quote');
-            $safe['author'] = section_read_string($fields, 'author');
-            $safe['role'] = section_read_string($fields, 'role');
-            return $safe;
-        }
-
-        if ($type === 'features') {
-            $safe['title'] = section_read_string($fields, 'title');
-            $safe['intro'] = section_read_string($fields, 'intro');
-            $safe['items'] = section_normalize_items('features', $fields['items'] ?? []);
-            return $safe;
-        }
-
-        if ($type === 'faq' || $type === 'stats') {
-            $safe['title'] = section_read_string($fields, 'title');
-            $safe['items'] = section_normalize_items($type, $fields['items'] ?? []);
-            return $safe;
-        }
-
-        return [];
+        return $safe;
     }
 
     /**
@@ -1058,30 +1146,32 @@
         $type = strtolower(trim($type));
         $fields = normalize_section_fields($type, $fields);
 
-        $form = [
-            'headline' => '',
-            'subline' => '',
-            'title' => '',
-            'content' => '',
-            'image' => '',
-            'button_label' => '',
-            'button_url' => '',
-            'quote' => '',
-            'author' => '',
-            'role' => '',
-            'items_lines' => '',
-        ];
+        $form = [];
+        $schema = get_section_schemas()[$type] ?? [];
+
+        // start with the keys we know from the schema; ensures new fields
+        // automatically appear in the form mapping
+        foreach ($schema['editor_fields'] ?? [] as $field) {
+            $form[$field] = '';
+        }
 
         foreach ($form as $key => $defaultValue) {
-            if (isset($fields[$key]) && is_scalar($fields[$key])) {
-                $form[$key] = (string) $fields[$key];
+            if (isset($fields[$key])) {
+                if (is_scalar($fields[$key])) {
+                    $form[$key] = (string) $fields[$key];
+                } elseif ($key === 'items' && is_array($fields['items'] ?? null)) {
+                    // keep array for JS-driven editors
+                    $form['items'] = $fields['items'];
+                }
             }
         }
 
-        if (($type === 'features' || $type === 'faq' || $type === 'stats') && isset($fields['items']) && is_array($fields['items'])) {
+        // handle list types translation to textarea
+        if (in_array($type, ['features', 'faq', 'stats'], true) && isset($fields['items']) && is_array($fields['items'])) {
             $form['items_lines'] = section_items_to_lines($type, $fields['items']);
         }
 
+        // 'intro' is stored in data but edited via 'content' for features
         if ($type === 'features') {
             $form['content'] = (string) ($fields['intro'] ?? '');
         }
@@ -1097,11 +1187,24 @@
      * @return array
      */
     // lightweight HTML sanitizer based on HTMLPurifier (if available).
-    // falls back to strip_tags() when the library isn't installed.
+    // falls back to strip_tags() when the library isn't installed. if the
+    // Composer autoload file exists we try to include it so that the
+    // `HTMLPurifier` class can be discovered even before any other code
+    // has triggered a load.
     function sanitize_section_html(string $html): string {
         $html = trim($html);
         if ($html === '') {
             return '';
+        }
+
+        // make sure the autoloader has been required; this mirrors the
+        // logic used in `load_phpmailer()` so we don't rely on another
+        // part of the application to pull in vendor files first.
+        if (!class_exists('HTMLPurifier')) {
+            $autoloadPath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+            if (is_file($autoloadPath)) {
+                require_once $autoloadPath;
+            }
         }
 
         if (class_exists('HTMLPurifier')) {
@@ -1124,59 +1227,223 @@
 
     function section_fields_from_form(string $type, array $input): array {
         $type = strtolower(trim($type));
+        if (!is_valid_section_type($type)) {
+            return [];
+        }
 
+        $schema = get_section_schemas()[$type];
         $fields = [];
 
-        if ($type === 'hero') {
-            $fields['headline'] = section_read_string($input, 'headline');
-            $fields['subline'] = section_read_string($input, 'subline');
-            return normalize_section_fields($type, $fields);
-        }
-
-        if ($type === 'text') {
-            $fields['title'] = section_read_string($input, 'title');
-            // content may contain HTML, sanitize it
-            $fields['content'] = sanitize_section_html($input['content'] ?? '');
-            return normalize_section_fields($type, $fields);
-        }
-
-        if ($type === 'cta') {
-            $fields['title'] = section_read_string($input, 'title');
-            $fields['button_label'] = section_read_string($input, 'button_label');
-            $fields['button_url'] = section_read_string($input, 'button_url');
-            return normalize_section_fields($type, $fields);
-        }
-
-        if ($type === 'media-text') {
-            $fields['title'] = section_read_string($input, 'title');
-            $fields['content'] = sanitize_section_html($input['content'] ?? '');
-            $fields['image'] = section_read_string($input, 'image');
-            $fields['button_label'] = section_read_string($input, 'button_label');
-            $fields['button_url'] = section_read_string($input, 'button_url');
-            return normalize_section_fields($type, $fields);
-        }
-
-        if ($type === 'testimonial') {
-            $fields['quote'] = section_read_string($input, 'quote');
-            $fields['author'] = section_read_string($input, 'author');
-            $fields['role'] = section_read_string($input, 'role');
-            return normalize_section_fields($type, $fields);
-        }
-
-        if ($type === 'features' || $type === 'faq' || $type === 'stats') {
-            $fields['title'] = section_read_string($input, 'title');
-
-            if ($type === 'features') {
-                $fields['intro'] = sanitize_section_html($input['content'] ?? '');
+        foreach ($schema['editor_fields'] ?? [] as $field) {
+            if ($field === 'items_lines') {
+                $raw = section_read_string($input, $field);
+                $fields['items'] = section_lines_to_items($type, $raw);
+                continue;
             }
 
-            $fields['items'] = section_lines_to_items($type, section_read_string($input, 'items_lines'));
-            return normalize_section_fields($type, $fields);
+            // allow nested arrays (e.g. portfolio items) to pass through
+            if (isset($input[$field]) && is_array($input[$field])) {
+                $fields[$field] = $input[$field];
+                continue;
+            }
+
+            $value = $input[$field] ?? '';
+
+            if (isset($schema['sanitize'][$field]) && is_callable($schema['sanitize'][$field])) {
+                $fields[$field] = $schema['sanitize'][$field]($value);
+            } elseif (in_array($field, ['content', 'intro'], true)) {
+                $fields[$field] = sanitize_section_html($value);
+            } else {
+                $fields[$field] = section_read_string($input, $field);
+            }
         }
 
-        $fields['title'] = section_read_string($input, 'title');
-        $fields['content'] = sanitize_section_html($input['content'] ?? '');
-        return normalize_section_fields('text', $fields);
+        // rename content -> intro for features schema
+        if ($type === 'features' && isset($fields['content'])) {
+            $fields['intro'] = $fields['content'];
+            unset($fields['content']);
+        }
+
+        return normalize_section_fields($type, $fields);
+    }
+
+    /**
+     * Custom post type schema registry.
+     *
+     * Similar to the section schema API, this allows plugins/themes to register
+     * new post types and configure behaviour (labels, default status, etc.).
+     * The core system currently knows about 'post', 'page' and 'attachment'.
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    function &get_custom_post_type_schemas(): array {
+        static $map = [];
+        return $map;
+    }
+
+    /**
+     * Register a custom post type.
+     *
+     * @param string $type
+     * @param array<string,mixed> $schema
+     */
+    function register_post_type(string $type, array $schema): void {
+        $type = strtolower(trim($type));
+        if ($type === '') { return; }
+        $map = &get_custom_post_type_schemas();
+        $map[$type] = $schema;
+    }
+
+    /**
+     * Get all known post type schemas (built‑in + custom).
+     *
+     * @return array<string,array<string,mixed>>
+     */
+    function get_post_type_schemas(): array {
+        static $schemas = null;
+        if (is_array($schemas)) {
+            return $schemas;
+        }
+
+        $schemas = [
+            'post' => ['label' => 'Post', 'default_status' => 'publish'],
+            'page' => ['label' => 'Page', 'default_status' => 'publish'],
+            'attachment' => ['label' => 'Attachment', 'default_status' => 'inherit'],
+        ];
+
+        $custom = get_custom_post_type_schemas();
+        if (!empty($custom)) {
+            $schemas = array_merge($schemas, $custom);
+        }
+        return $schemas;
+    }
+
+    /**
+     * Return the list of valid post type strings.
+     *
+     * @return string[]
+     */
+    function get_post_types(): array {
+        return array_keys(get_post_type_schemas());
+    }
+
+    /**
+     * Check if a given type is registered.
+     */
+    function is_valid_post_type(string $type): bool {
+        return isset(get_post_type_schemas()[$type]);
+    }
+
+    /**
+     * Retrieve posts of a given type with optional WHERE conditions.
+     *
+     * Example: get_posts($pdo,'page',['post_status'=> 'publish'], ['limit'=>10]);
+     *
+     * @param PDO $pdo
+     * @param string $type
+     * @param array<string,mixed> $where  column=>value pairs for equality conditions
+     * @param array<string,int|string> $options  ['limit'=>int,'offset'=>int]
+     * @return array<int,array>
+     */
+    // generic query helper for posts with optional conditions. renamed from
+    // `get_posts` to avoid conflict with the simpler convenience function used
+    // elsewhere in the codebase.
+    function query_posts(PDO $pdo, string $type = 'post', array $where = [], array $options = []): array {
+        $type = strtolower(trim($type));
+        if ($type === '' || !is_valid_post_type($type)) {
+            return [];
+        }
+        $sql = "SELECT * FROM posts WHERE post_type = :type";
+        $params = ['type' => $type];
+        foreach ($where as $col => $val) {
+            $sql .= " AND " . preg_replace('/[^a-z0-9_]/i','', $col) . " = :" . $col;
+            $params[$col] = $val;
+        }
+        if (isset($options['limit']) && is_int($options['limit'])) {
+            $sql .= " LIMIT " . $options['limit'];
+        }
+        if (isset($options['offset']) && is_int($options['offset'])) {
+            $sql .= " OFFSET " . $options['offset'];
+        }
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Render a section array on the front end.
+     *
+     * The provided section should be an associative array with at least a
+     * 'type' key and optionally a 'fields' sub‑array. Fields are automatically
+     * normalized before rendering. If the schema for the type contains a
+     * callable 'render_callback' that will be invoked; otherwise the helper
+     * will fall back to including the matching file from `_website/blocks`.
+     *
+     * @param array{name?:string,type:string,fields?:array} $section
+     */
+    /**
+     * Locate a block template file for a given section type.
+     *
+     * @return string|null Full path to file or null when not found
+     */
+    function locate_block_file(string $type, ?string $basePath = null): ?string {
+        $root = dirname(__DIR__, 3);
+        $defaultPath = $root . '/_website/blocks';
+        $path = $basePath ?: $defaultPath;
+        $blockFile = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . $type . '.php';
+        return is_file($blockFile) ? $blockFile : null;
+    }
+
+    /**
+     * Render a section to a string (does not echo).
+     * Returns an empty string when type is invalid or template missing.
+     */
+    function render_section_to_string(array $section, ?string $basePath = null): string {
+        $type = strtolower(trim($section['type'] ?? ''));
+        if (!is_valid_section_type($type)) {
+            return '';
+        }
+
+        $schema = get_section_schemas()[$type];
+        $fields = normalize_section_fields($type, $section['fields'] ?? []);
+        $attrs = is_array($section['attrs'] ?? null) ? $section['attrs'] : [];
+
+        // If a custom renderer exists prefer it. Capture any echoed output
+        // and also respect return values from callbacks.
+        if (isset($schema['render_callback']) && is_callable($schema['render_callback'])) {
+            ob_start();
+            $result = $schema['render_callback']($fields, $attrs);
+            $buffer = (string) ob_get_clean();
+            if (is_string($result) && $result !== '') {
+                return $buffer . $result;
+            }
+            return $buffer;
+        }
+
+        // ensure helpers are available
+        $componentHelpers = dirname(__DIR__, 3) . '/_website/partials/components.php';
+        if (is_file($componentHelpers)) {
+            require_once $componentHelpers;
+        }
+
+        // make normalized variables available to templates (backwards compat)
+        $section = ['type' => $type, 'fields' => $fields, 'attrs' => $attrs];
+
+        $blockFile = locate_block_file($type, $basePath);
+        if ($blockFile === null) {
+            return '';
+        }
+
+        ob_start();
+        include $blockFile;
+        return (string) ob_get_clean();
+    }
+
+    /**
+     * Backwards compatible render function that echoes output.
+     */
+    function render_section(array $section, ?string $basePath = null): void {
+        echo render_section_to_string($section, $basePath);
     }
 
     /**
@@ -1221,6 +1488,7 @@
             $normalized[] = [
                 'type' => $safeType,
                 'fields' => $normalizedFields,
+                'attrs' => is_array($section['attrs'] ?? null) ? $section['attrs'] : [],
             ];
         }
 
@@ -1276,26 +1544,8 @@
             return;
         }
 
-        // By default blocks live in the project root "_website/blocks"; the previous
-        // implementation incorrectly resolved relative to the helpers folder which
-        // ended up pointing at "resources/_website/blocks". Use dirname() to climb out
-        // to the workspace root instead.
-        $root = dirname(__DIR__, 3); // .../fundamental
-        $basePath = $sectionsBasePath ?: $root . '/_website/blocks';
-
-        // Backward compatibility for older setups that still use _website/sections.
-        if (!is_dir($basePath) && $sectionsBasePath === null) {
-            $legacyPath = $root . '/_website/sections';
-            if (is_dir($legacyPath)) {
-                $basePath = $legacyPath;
-            }
-        }
-
-        $componentHelpers = $root . '/_website/partials/components.php';
-        if (is_file($componentHelpers)) {
-            require_once $componentHelpers;
-        }
-
+        // helper path is loaded by render_section if necessary; we don't need to
+        // replicate it here any more.
         foreach ($sections as $index => $entry) {
             if (!is_array($entry)) {
                 continue;
@@ -1303,33 +1553,28 @@
 
             $type = (string) ($entry['type'] ?? '');
             $fields = $entry['fields'] ?? [];
+            $attrs = $entry['attrs'] ?? [];
 
             if (!is_array($fields)) {
                 $fields = [];
             }
+            if (!is_array($attrs)) {
+                $attrs = [];
+            }
 
             $safeType = preg_replace('/[^a-z0-9\-_]/i', '', strtolower($type));
-
             if ($safeType === '' || !is_valid_section_type($safeType)) {
                 continue;
             }
-
-            $fields = normalize_section_fields($safeType, $fields);
 
             $section = [
                 'index' => (int) $index,
                 'type' => $safeType,
                 'fields' => $fields,
+                'attrs' => $attrs,
             ];
 
-            $templatePath = rtrim($basePath, '/\\') . DIRECTORY_SEPARATOR . $safeType . '.php';
-
-            if (is_file($templatePath)) {
-                require $templatePath;
-                continue;
-            }
-
-            echo '<!-- Unknown section type: ' . esc_html($safeType) . ' -->';
+            render_section($section, $sectionsBasePath);
         }
     }
 

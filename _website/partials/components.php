@@ -13,9 +13,34 @@ if (!function_exists('component_escape_attr')) {
 }
 
 if (!function_exists('component_section_open')) {
-    function component_section_open(string $className): void {
+    /**
+     * Open a section tag with a base classname and optional attributes.
+     *
+     * The second argument accepts an associative array of HTML attributes;
+     * the `class` key will be merged with the base classname. This makes it
+     * easy for a renderer to pass extra modifiers, IDs or data-attributes.
+     */
+    function component_section_open(string $className, array $attributes = []): void {
         $className = trim($className);
-        echo '<section class="' . component_escape_attr($className) . '">';
+        $classes = [$className];
+
+        if (isset($attributes['class'])) {
+            $classes[] = $attributes['class'];
+            unset($attributes['class']);
+        }
+
+        $attrPairs = [];
+        $attrPairs[] = 'class="' . component_escape_attr(trim(implode(' ', $classes))) . '"';
+
+        foreach ($attributes as $attr => $val) {
+            $attr = strtolower(trim($attr));
+            if ($attr === '') {
+                continue;
+            }
+            $attrPairs[] = $attr . '="' . component_escape_attr($val) . '"';
+        }
+
+        echo '<section ' . implode(' ', $attrPairs) . '>';
     }
 }
 
@@ -84,7 +109,7 @@ if (!function_exists('component_rich_text')) {
         }
 
         $safeTag = strtolower(trim($tag));
-        $allowed = ['div', 'section', 'article'];
+        $allowed = ['div', 'section', 'article', 'p', 'span', 'blockquote', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
         if (!in_array($safeTag, $allowed, true)) {
             $safeTag = 'div';
@@ -112,3 +137,124 @@ if (!function_exists('component_link')) {
         echo '<a href="' . component_escape_attr($url) . '"' . $classAttr . '>' . component_escape_html($label) . '</a>';
     }
 }
+
+// -----------------------------------------------------------------------------
+// generic helpers for block templates
+// -----------------------------------------------------------------------------
+
+if (!function_exists('get_block_defaults')) {
+    /**
+     * Return a set of default field values for a given block type.
+     *
+     * This allows individual block templates to remain light-weight and keeps
+     * the placeholder/sample content in a single location.  The values are
+     * merged with any user-supplied fields before rendering.
+     *
+     * @param string $type block identifier (slug without extension)
+     * @return array associative array of default fields
+     */
+    function get_block_defaults(string $type): array {
+        // prefer defaults defined in the section schema; this allows the
+        // information to live alongside the block template itself. the
+        // loader (get_section_schemas) will merge in any `defaults` keys that
+        // were provided by the file.
+        $type = strtolower(trim($type));
+        $schemas = function_exists('get_section_schemas') ? get_section_schemas() : [];
+        if (isset($schemas[$type]['defaults']) && is_array($schemas[$type]['defaults'])) {
+            return $schemas[$type]['defaults'];
+        }
+
+        // legacy fallback – kept for backwards compatibility until all
+        // blocks are converted to self‑describing form.
+        static $defaults = [
+            'hero' => [
+                'headline' => '',
+                'subline'  => '',
+            ],
+            'content' => [
+                'left' => [],
+                'right' => [],
+            ],
+            'services' => [
+                'title' => 'Services',
+                'intro' => 'Complete webdevelopment services voor bedrijven die betere prestaties, design en online groei willen.',
+                'items' => [],
+            ],
+            'faq' => [
+                'title' => '',
+                'items' => [],
+            ],
+            'features' => [
+                'title' => '',
+                'content' => '',
+                'items' => [],
+            ],
+            'stats' => [
+                'title' => '',
+                'items' => [],
+            ],
+            'testimonial' => [
+                'quote'  => '',
+                'author' => '',
+                'role'   => '',
+            ],
+            'portfolio' => [
+                'items' => [],
+            ],
+            'contact' => [
+                'options' => [],
+                'text'    => '',
+            ],
+            'case-study' => [
+                'title'    => 'Case study',
+                'subtitle' => '',
+                'text'     => '',
+                'link'     => '',
+            ],
+            'media-text' => [
+                'title'        => '',
+                'content'      => '',
+                'image'        => '',
+                'button_label' => '',
+                'button_url'   => '',
+            ],
+            'text' => [
+                'title'   => '',
+                'content' => '',
+            ],
+            'cta' => [
+                'title'        => '',
+                'button_label' => '',
+                'button_url'   => '',
+            ],
+            // other block types may be added here as needed
+        ];
+
+        $type = strtolower(trim($type));
+        return $defaults[$type] ?? [];
+    }
+}
+
+if (!function_exists('component_render_list')) {
+    /**
+     * Output an unordered list from an array of strings with proper escaping.
+     *
+     * @param array $items
+     * @param string $className optional class for the <ul>
+     */
+    function component_render_list(array $items, string $className = ''): void {
+        if ($items === []) {
+            return;
+        }
+
+        $className = trim($className);
+        $classAttr = $className !== '' ? ' class="' . component_escape_attr($className) . '"' : '';
+
+        echo '<ul' . $classAttr . '>';
+        foreach ($items as $li) {
+            echo '<li>' . component_escape_html((string) $li) . '</li>';
+        }
+        echo '</ul>';
+    }
+}
+

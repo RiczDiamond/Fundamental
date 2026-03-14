@@ -63,7 +63,6 @@
             ?>
         <?php endif; ?>
 
-    </div>
 	<footer>
 
 			<div class="columns">

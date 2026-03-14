@@ -1,21 +1,48 @@
 <?php
 
-$headline = (string) ($section['fields']['headline'] ?? 'Wij bouwen snelle websites');
-$subline = (string) ($section['fields']['subline'] ?? 'Met <span id="html5">HTML5</span>, <span id="css">CSS</span>, <span id="javascript">JavaScript</span> en <span id="php">PHP</span> ontwikkelen wij moderne en snelle websites.');
+/**
+ * Hero / intro section.
+ *
+ * Self‑describing schema for editor/dashboard.  When `_BLOCK_SCHEMA_ONLY`
+ * is true the array is returned instead of rendering.
+ *
+ * Fields:
+ *   - headline
+ *   - subline (HTML allowed)
+ */
 
-component_section_open('section-hero');
+$block_schema = [
+    'hint' => 'Gebruikt: headline, subline',
+    'fields' => [
+        'headline' => ['type'=>'string','default'=>''],
+        'subline'  => ['type'=>'html','default'=>''],
+    ],
+];
 
+if (!empty($GLOBALS['_BLOCK_SCHEMA_ONLY'])) {
+    return $block_schema;
+}
+
+$fields = array_merge(
+    get_block_defaults('hero'),
+    (array) ($section['fields'] ?? [])
+);
+
+$headline = (string) $fields['headline'];
+$subline  = (string) $fields['subline'];
+
+component_section_open('section-intro', $section['attrs'] ?? []);
 ?>
 
-<div class="container">
-<h1><?php echo $headline; ?></h1>
+<div class="container intro">
+    <?php if ($headline !== '') : ?>
+        <h1><?php echo component_escape_html($headline); ?></h1>
+    <?php endif; ?>
 
-<p>
-    <?php echo $subline; ?>
-</p>
-
+    <?php if ($subline !== '') : ?>
+        <?php component_rich_text($subline, 'p'); ?>
+    <?php endif; ?>
 </div>
-
 
 <?php
 

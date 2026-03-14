@@ -261,5 +261,3 @@
         
 
     </header>
-
-    <div id="content">

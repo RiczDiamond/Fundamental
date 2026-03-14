@@ -58,6 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $title = sanitize_text_field($_POST['post_title'] ?? '');
     $slugInput = sanitize_text_field($_POST['post_name'] ?? '');
+    // determine slug immediately so $slug is always defined
+    $slug = sanitize_title($slugInput !== '' ? $slugInput : $title);
+    if ($slug === '') {
+        $slug = 'pagina-' . $pageId;
+    }
     // post_content is no longer editable; ignore whatever is submitted
     $status = sanitize_text_field($_POST['post_status'] ?? 'draft');
     $saveAction = sanitize_text_field($_POST['save_action'] ?? 'save');
@@ -109,30 +114,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $normalizedSections[] = [
                 'type' => $type,
                 'fields' => section_fields_from_form($type, $fieldInput),
+                'attrs' => $sections[$index]['attrs'] ?? [],
             ];
         }
-    }
 
-    $slug = sanitize_title($slugInput !== '' ? $slugInput : $title);
-    if ($slug === '') {
-        $slug = 'pagina-' . $pageId;
-    }
+        // ensure slug is unique, loop after sections normalized
+        if ($error === '') {
+            $baseSlug = $slug;
+            $counter = 2;
 
-    if ($error === '') {
-        $baseSlug = $slug;
-        $counter = 2;
+            while (true) {
+                $existsStmt = $link->prepare("\n                SELECT ID\n                FROM posts\n                WHERE post_type = 'page'\n                  AND post_name = :slug\n                  AND ID <> :id\n                LIMIT 1\n            ");
+                $existsStmt->execute(['slug' => $slug, 'id' => $pageId]);
 
-        while (true) {
-            $existsStmt = $link->prepare("\n                SELECT ID\n                FROM posts\n                WHERE post_type = 'page'\n                  AND post_name = :slug\n                  AND ID <> :id\n                LIMIT 1\n            ");
-            $existsStmt->execute(['slug' => $slug, 'id' => $pageId]);
+                if (!$existsStmt->fetch()) {
+                    break;
+                }
 
-            if (!$existsStmt->fetch()) {
-                break;
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
             }
-
-            $slug = $baseSlug . '-' . $counter;
-            $counter++;
         }
+
+        // after uniqueness check $slug is guaranteed, continue saving
 
         $sectionsJson = json_encode($normalizedSections, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -214,6 +218,9 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         .error { border-color: #fecaca; background: #fef2f2; color: var(--danger); }
         label { display: block; margin: 12px 0 6px; font-weight: 600; font-size: 14px; }
         input,textarea,select { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 11px; font: inherit; color: inherit; background: #fff; }
+        .portfolio-rows .portfolio-row { display:flex; gap:6px; margin-bottom:4px; }
+        .portfolio-rows .portfolio-row input { width: 23%; }
+
         textarea { min-height: 130px; resize: vertical; }
         .row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 10px; flex-wrap: wrap; }
         .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; text-decoration: none; font-weight: 600; display: inline-block; }
@@ -297,7 +304,13 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                     }
                     $formFields = section_fields_to_form($type, $fields);
                     ?>
-                    <div class="section-card">
+                    <?php
+                    $dataItems = '';
+                    if (isset($formFields['items']) && is_array($formFields['items'])) {
+                        $dataItems = ' data-items="' . esc_attr(json_encode($formFields['items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"';
+                    }
+                    ?>
+                    <div class="section-card"<?php echo $dataItems; ?>>
                         <div class="section-card-head">
                             <strong>Section <?php echo (int) $index + 1; ?></strong>
                             <button class="btn btn-danger" type="button" onclick="removeSection(this)">Verwijderen</button>
@@ -312,17 +325,22 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                         <p class="hint"><?php echo esc_html(section_type_hint($type)); ?></p>
 
                         <div class="section-grid">
-                            <div class="field-wrap" data-key="headline"><label>Headline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][headline]" value="<?php echo esc_html($formFields['headline']); ?>"></div>
-                            <div class="field-wrap" data-key="subline"><label>Subline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][subline]" value="<?php echo esc_html($formFields['subline']); ?>"></div>
-                            <div class="field-wrap" data-key="title"><label>Titel</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][title]" value="<?php echo esc_html($formFields['title']); ?>"></div>
-                            <div class="field-wrap" data-key="image"><label>Image URL</label><input type="text" list="media-urls" name="section_fields[<?php echo (int) $index; ?>][image]" value="<?php echo esc_html($formFields['image']); ?>"></div>
-                            <div class="field-wrap" data-key="button_label"><label>Button Label</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_label]" value="<?php echo esc_html($formFields['button_label']); ?>"></div>
-                            <div class="field-wrap" data-key="button_url"><label>Button URL</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_url]" value="<?php echo esc_html($formFields['button_url']); ?>"></div>
-                            <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][quote]" value="<?php echo esc_html($formFields['quote']); ?>"></div>
-                            <div class="field-wrap" data-key="author"><label>Author</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][author]" value="<?php echo esc_html($formFields['author']); ?>"></div>
-                            <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][role]" value="<?php echo esc_html($formFields['role']); ?>"></div>
-                            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" name="section_fields[<?php echo (int) $index; ?>][content]"><?php echo esc_html($formFields['content']); ?></textarea></div>
-                            <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea name="section_fields[<?php echo (int) $index; ?>][items_lines]" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"><?php echo esc_html($formFields['items_lines']); ?></textarea></div>
+                            <div class="field-wrap" data-key="headline"><label>Headline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][headline]" value="<?php echo esc_html($formFields['headline'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="subline"><label>Subline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][subline]" value="<?php echo esc_html($formFields['subline'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="title"><label>Titel</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][title]" value="<?php echo esc_html($formFields['title'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="image"><label>Image URL</label><input type="text" list="media-urls" name="section_fields[<?php echo (int) $index; ?>][image]" value="<?php echo esc_html($formFields['image'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="button_label"><label>Button Label</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_label]" value="<?php echo esc_html($formFields['button_label'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="button_url"><label>Button URL</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_url]" value="<?php echo esc_html($formFields['button_url'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][quote]" value="<?php echo esc_html($formFields['quote'] ?? ''); ?>"></div>
+                            <div class="field-wrap" data-key="author"><label>Author</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][author]" value="<?php echo esc_html($formFields['author'] ?? ''); ?>"></div>
+                            <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][role]" value="<?php echo esc_html($formFields['role'] ?? ''); ?>"></div>
+                            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" name="section_fields[<?php echo (int) $index; ?>][content]"><?php echo esc_html($formFields['content'] ?? ''); ?></textarea></div>
+                            <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea name="section_fields[<?php echo (int) $index; ?>][items_lines]" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"><?php echo esc_html($formFields['items_lines'] ?? ''); ?></textarea></div>
+                            <div class="field-wrap full portfolio-items" data-key="portfolio_items">
+                                <label>Portfolio items</label>
+                                <div class="portfolio-rows" data-index="<?php echo (int) $index; ?>"></div>
+                                <button type="button" class="btn btn-ghost" onclick="addPortfolioRow(this)">+ rij</button>
+                            </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -406,23 +424,36 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         </div>
         <label>Type</label>
         <select data-name="section_type">
-            <?php foreach ($availableTypes as $availableType): ?>
-                <option value="<?php echo esc_html($availableType); ?>"><?php echo esc_html($availableType); ?></option>
-            <?php endforeach; ?>
+            <option value="hero">hero</option>
+            <option value="text">text</option>
+            <option value="cta">cta</option>
+            <option value="features">features</option>
+            <option value="faq">faq</option>
+            <option value="media-text">media-text</option>
+            <option value="services">services</option>
+            <option value="portfolio">portfolio</option>
+            <option value="case-study">case-study</option>
+            <option value="stats">stats</option>
+            <option value="testimonial">testimonial</option>
         </select>
-        <p class="hint">Vul velden in; niet relevante velden worden voor het gekozen type genegeerd.</p>
+        <p class="hint">Gebruikt: items (image|title|subject|tags per regel)</p>
         <div class="section-grid">
-            <div class="field-wrap" data-key="headline"><label>Headline</label><input type="text" data-name="headline"></div>
-            <div class="field-wrap" data-key="subline"><label>Subline</label><input type="text" data-name="subline"></div>
-            <div class="field-wrap" data-key="title"><label>Titel</label><input type="text" data-name="title"></div>
-            <div class="field-wrap" data-key="image"><label>Image URL</label><input type="text" list="media-urls" data-name="image"></div>
-            <div class="field-wrap" data-key="button_label"><label>Button Label</label><input type="text" data-name="button_label"></div>
-            <div class="field-wrap" data-key="button_url"><label>Button URL</label><input type="text" data-name="button_url"></div>
-            <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" data-name="quote"></div>
-            <div class="field-wrap" data-key="author"><label>Author</label><input type="text" data-name="author"></div>
-            <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" data-name="role"></div>
-            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" data-name="content"></textarea></div>
-            <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea data-name="items_lines" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"></textarea></div>
+            <div class="field-wrap hidden" data-key="headline"><label>Headline</label><input type="text" data-name="headline"></div>
+            <div class="field-wrap hidden" data-key="subline"><label>Subline</label><input type="text" data-name="subline"></div>
+            <div class="field-wrap hidden" data-key="title"><label>Titel</label><input type="text" data-name="title"></div>
+            <div class="field-wrap hidden" data-key="image"><label>Image URL</label><input type="text" list="media-urls" data-name="image"></div>
+            <div class="field-wrap hidden" data-key="button_label"><label>Button Label</label><input type="text" data-name="button_label"></div>
+            <div class="field-wrap hidden" data-key="button_url"><label>Button URL</label><input type="text" data-name="button_url"></div>
+            <div class="field-wrap hidden" data-key="quote"><label>Quote</label><input type="text" data-name="quote"></div>
+            <div class="field-wrap hidden" data-key="author"><label>Author</label><input type="text" data-name="author"></div>
+            <div class="field-wrap full hidden" data-key="role"><label>Role</label><input type="text" data-name="role"></div>
+            <div class="field-wrap full hidden" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" data-name="content"></textarea></div>
+            <div class="field-wrap full hidden" data-key="items_lines"><label>Items</label><textarea data-name="items_lines" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"></textarea></div>
+            <div class="field-wrap full hidden portfolio-items" data-key="portfolio_items">
+                <label>Portfolio items</label>
+                <div class="portfolio-rows" data-index=""></div>
+                <button type="button" class="btn btn-ghost" onclick="addPortfolioRow(this)">+ rij</button>
+            </div>
         </div>
     </div>
 </template>
@@ -430,6 +461,7 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
 <script>
 var fieldsByType = <?php echo json_encode($sectionEditorFieldsMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 var sectionHints = <?php echo json_encode($sectionHints, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+var sectionSchemaMap = <?php echo json_encode(get_section_schemas(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>; // full schema for each type
 
 function refreshSectionFields(card) {
     var select = card.querySelector('select[name^="section_type"], select[data-name="section_type"]');
@@ -453,7 +485,70 @@ function refreshSectionFields(card) {
     if (hint) {
         hint.textContent = sectionHints[type] || 'Vul de velden in die je nodig hebt voor dit type.';
     }
+
+    // portfolio custom editor
+    var schema = sectionSchemaMap[type] || {};
+    var hasNestedItems = schema.fields && schema.fields.items && schema.fields.items.item;
+    var portfolioWrap = card.querySelector('.portfolio-items');
+    if (portfolioWrap) {
+        if (hasNestedItems) {
+            portfolioWrap.classList.remove('hidden');
+            var idx = getSectionIndex(card);
+            var existing = [];
+            try {
+                existing = JSON.parse(card.getAttribute('data-items') || '[]');
+            } catch (e) { existing = []; }
+            renderPortfolioRows(portfolioWrap, existing, idx);
+        } else {
+            portfolioWrap.classList.add('hidden');
+        }
+    }
+
+// helper to pull numeric index from one of the input names
+function getSectionIndex(card) {
+    var inp = card.querySelector('input[name^="section_fields"]');
+    if (!inp) return null;
+    var m = inp.name.match(/^section_fields\[(\d+)\]/);
+    return m ? parseInt(m[1], 10) : null;
 }
+}
+
+function renderPortfolioRows(wrapper, items, sectionIndex) {
+    var container = wrapper.querySelector('.portfolio-rows');
+    if (!container) return;
+    container.innerHTML = '';
+    items = Array.isArray(items) ? items : [];
+    items.forEach(function(item, i) {
+        addPortfolioRow(container, sectionIndex, item);
+    });
+}
+
+function addPortfolioRow(buttonOrContainer, sectionIndex, itemData) {
+    var container, sectionIdx;
+    if (buttonOrContainer.classList && buttonOrContainer.classList.contains('portfolio-rows')) {
+        container = buttonOrContainer;
+        sectionIdx = sectionIndex;
+    } else {
+        // called from + rij button
+        var row = buttonOrContainer.closest('.portfolio-items');
+        if (!row) return;
+        container = row.querySelector('.portfolio-rows');
+        sectionIdx = parseInt(container.getAttribute('data-index'), 10);
+    }
+    if (!container) return;
+
+    var itemIdx = container.children.length;
+    var div = document.createElement('div');
+    div.className = 'portfolio-row';
+    div.innerHTML = '
+        <input type="text" placeholder="Image URL" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][image]" value="'+(itemData && itemData.image?itemData.image:'')+'">'
+        +'<input type="text" placeholder="Title" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][title]" value="'+(itemData && itemData.title?itemData.title:'')+'">'
+        +'<input type="text" placeholder="Subject" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][subject]" value="'+(itemData && itemData.subject?itemData.subject:'')+'">'
+        +'<input type="text" placeholder="Tags (comma)" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][tags]" value="'+(itemData && Array.isArray(itemData.tags)?itemData.tags.join(','):'')+'">'
+        +'<button type="button" onclick="this.parentNode.remove()" class="btn btn-danger">×</button>';
+    container.appendChild(div);
+}
+
 
 function addSection() {
     var list = document.getElementById('sections-list');
@@ -469,6 +564,12 @@ function addSection() {
             el.setAttribute('name', 'section_fields[' + nextIndex + '][' + key + ']');
         }
     });
+    // ensure portfolio rows container knows its section index
+    clone.querySelectorAll('.portfolio-rows').forEach(function(el){
+        el.setAttribute('data-index', nextIndex);
+    });
+    // remove any data-items that might have been cloned
+    clone.querySelectorAll('.section-card').forEach(function(el){ el.removeAttribute('data-items'); });
 
     list.appendChild(clone);
     // ensure wysiwyg editors are initialised for any textarea inside the new fragment
