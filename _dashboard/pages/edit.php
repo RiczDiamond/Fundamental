@@ -170,7 +170,6 @@ $saved = sanitize_text_field($_GET['saved'] ?? '') === '1';
 $restored = sanitize_text_field($_GET['restored'] ?? '') === '1';
 $created = sanitize_text_field($_GET['created'] ?? '') === '1';
 $nextSectionIndex = count($sections);
-$sectionEditorFieldsMap = get_section_editor_fields_map();
 $sectionHints = [];
 foreach ($availableTypes as $schemaType) {
     $sectionHints[$schemaType] = section_type_hint($schemaType);
@@ -271,8 +270,10 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
         <?php if ($created): ?><div class="notice">Pagina aangemaakt. Je kunt nu direct sections aanpassen.</div><?php endif; ?>
         <?php if ($restored): ?><div class="notice">Revision hersteld.</div><?php endif; ?>
         <?php if ($error !== ''): ?><div class="error"><?php echo esc_html($error); ?></div><?php endif; ?>
+        <div id="ajax-notice" class="notice" style="display:none;"></div>
 
         <form method="post" action="/dashboard/pages/edit?id=<?php echo (int) $page['ID']; ?>">
+            <input type="hidden" name="page_id" value="<?php echo (int) $page['ID']; ?>">
             <?php mol_nonce_field('pages_edit_' . (int) $page['ID']); ?>
             <label for="post_title">Titel</label>
             <input id="post_title" name="post_title" type="text" value="<?php echo esc_html((string) $page['post_title']); ?>" required>
@@ -310,38 +311,21 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
                         $dataItems = ' data-items="' . esc_attr(json_encode($formFields['items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"';
                     }
                     ?>
-                    <div class="section-card"<?php echo $dataItems; ?>>
+                    <div class="section-card" data-index="<?php echo (int) $index; ?>" data-fields="<?php echo esc_attr(json_encode($formFields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>"<?php echo $dataItems; ?>>
                         <div class="section-card-head">
                             <strong>Section <?php echo (int) $index + 1; ?></strong>
                             <button class="btn btn-danger" type="button" onclick="removeSection(this)">Verwijderen</button>
                         </div>
 
                         <label>Type</label>
-                        <select name="section_type[<?php echo (int) $index; ?>]">
+                        <select name="section_type[<?php echo (int) $index; ?>]" class="section-type-select">
                             <?php foreach ($availableTypes as $availableType): ?>
                                 <option value="<?php echo esc_html($availableType); ?>" <?php echo $availableType === $type ? 'selected' : ''; ?>><?php echo esc_html($availableType); ?></option>
                             <?php endforeach; ?>
                         </select>
                         <p class="hint"><?php echo esc_html(section_type_hint($type)); ?></p>
 
-                        <div class="section-grid">
-                            <div class="field-wrap" data-key="headline"><label>Headline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][headline]" value="<?php echo esc_html($formFields['headline'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="subline"><label>Subline</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][subline]" value="<?php echo esc_html($formFields['subline'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="title"><label>Titel</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][title]" value="<?php echo esc_html($formFields['title'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="image"><label>Image URL</label><input type="text" list="media-urls" name="section_fields[<?php echo (int) $index; ?>][image]" value="<?php echo esc_html($formFields['image'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="button_label"><label>Button Label</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_label]" value="<?php echo esc_html($formFields['button_label'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="button_url"><label>Button URL</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][button_url]" value="<?php echo esc_html($formFields['button_url'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="quote"><label>Quote</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][quote]" value="<?php echo esc_html($formFields['quote'] ?? ''); ?>"></div>
-                            <div class="field-wrap" data-key="author"><label>Author</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][author]" value="<?php echo esc_html($formFields['author'] ?? ''); ?>"></div>
-                            <div class="field-wrap full" data-key="role"><label>Role</label><input type="text" name="section_fields[<?php echo (int) $index; ?>][role]" value="<?php echo esc_html($formFields['role'] ?? ''); ?>"></div>
-                            <div class="field-wrap full" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" name="section_fields[<?php echo (int) $index; ?>][content]"><?php echo esc_html($formFields['content'] ?? ''); ?></textarea></div>
-                            <div class="field-wrap full" data-key="items_lines"><label>Items</label><textarea name="section_fields[<?php echo (int) $index; ?>][items_lines]" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"><?php echo esc_html($formFields['items_lines'] ?? ''); ?></textarea></div>
-                            <div class="field-wrap full portfolio-items" data-key="portfolio_items">
-                                <label>Portfolio items</label>
-                                <div class="portfolio-rows" data-index="<?php echo (int) $index; ?>"></div>
-                                <button type="button" class="btn btn-ghost" onclick="addPortfolioRow(this)">+ rij</button>
-                            </div>
-                        </div>
+                        <div class="section-fields"></div>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -417,83 +401,154 @@ $username = (string) ($_SESSION['user_name'] ?? 'Gebruiker');
 </div>
 
 <template id="section-template">
-    <div class="section-card">
+    <div class="section-card" data-index="" data-fields="{}">
         <div class="section-card-head">
             <strong>Nieuwe section</strong>
             <button class="btn btn-danger" type="button" onclick="removeSection(this)">Verwijderen</button>
         </div>
+
         <label>Type</label>
-        <select data-name="section_type">
-            <option value="hero">hero</option>
-            <option value="text">text</option>
-            <option value="cta">cta</option>
-            <option value="features">features</option>
-            <option value="faq">faq</option>
-            <option value="media-text">media-text</option>
-            <option value="services">services</option>
-            <option value="portfolio">portfolio</option>
-            <option value="case-study">case-study</option>
-            <option value="stats">stats</option>
-            <option value="testimonial">testimonial</option>
-        </select>
-        <p class="hint">Gebruikt: items (image|title|subject|tags per regel)</p>
-        <div class="section-grid">
-            <div class="field-wrap hidden" data-key="headline"><label>Headline</label><input type="text" data-name="headline"></div>
-            <div class="field-wrap hidden" data-key="subline"><label>Subline</label><input type="text" data-name="subline"></div>
-            <div class="field-wrap hidden" data-key="title"><label>Titel</label><input type="text" data-name="title"></div>
-            <div class="field-wrap hidden" data-key="image"><label>Image URL</label><input type="text" list="media-urls" data-name="image"></div>
-            <div class="field-wrap hidden" data-key="button_label"><label>Button Label</label><input type="text" data-name="button_label"></div>
-            <div class="field-wrap hidden" data-key="button_url"><label>Button URL</label><input type="text" data-name="button_url"></div>
-            <div class="field-wrap hidden" data-key="quote"><label>Quote</label><input type="text" data-name="quote"></div>
-            <div class="field-wrap hidden" data-key="author"><label>Author</label><input type="text" data-name="author"></div>
-            <div class="field-wrap full hidden" data-key="role"><label>Role</label><input type="text" data-name="role"></div>
-            <div class="field-wrap full hidden" data-key="content"><label>Content / Intro</label><textarea class="wysiwyg" data-name="content"></textarea></div>
-            <div class="field-wrap full hidden" data-key="items_lines"><label>Items</label><textarea data-name="items_lines" placeholder="features: 1 item per regel&#10;faq/stats: links|rechts per regel"></textarea></div>
-            <div class="field-wrap full hidden portfolio-items" data-key="portfolio_items">
-                <label>Portfolio items</label>
-                <div class="portfolio-rows" data-index=""></div>
-                <button type="button" class="btn btn-ghost" onclick="addPortfolioRow(this)">+ rij</button>
-            </div>
+        <select data-name="section_type" class="section-type-select"></select>
+        <p class="hint"></p>
+
+        <div class="section-fields"></div>
+
+        <div class="portfolio-items hidden">
+            <label>Portfolio items</label>
+            <div class="portfolio-rows" data-index=""></div>
+            <button type="button" class="btn btn-ghost" onclick="addPortfolioRow(this)">+ rij</button>
         </div>
     </div>
 </template>
 
 <script>
-var fieldsByType = <?php echo json_encode($sectionEditorFieldsMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 var sectionHints = <?php echo json_encode($sectionHints, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 var sectionSchemaMap = <?php echo json_encode(get_section_schemas(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>; // full schema for each type
 
-function refreshSectionFields(card) {
-    var select = card.querySelector('select[name^="section_type"], select[data-name="section_type"]');
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function populateTypeSelect(select, selectedType) {
     if (!select) return;
+    select.innerHTML = '';
 
-    var type = select.value;
-    var allowed = fieldsByType[type] || ['title', 'content'];
-
-    card.querySelectorAll('.field-wrap[data-key]').forEach(function (wrap) {
-        var key = wrap.getAttribute('data-key');
-        var visible = allowed.indexOf(key) !== -1;
-        wrap.classList.toggle('hidden', !visible);
-
-        var input = wrap.querySelector('input, textarea, select');
-        if (input && !visible) {
-            input.value = '';
-        }
-    });
-
-    var hint = card.querySelector('.hint');
-    if (hint) {
-        hint.textContent = sectionHints[type] || 'Vul de velden in die je nodig hebt voor dit type.';
+    var types = Object.keys(sectionSchemaMap);
+    if (types.length === 0) {
+        return;
     }
 
-    // portfolio custom editor
+    var defaultType = types.indexOf(selectedType) !== -1 ? selectedType : types[0];
+
+    types.forEach(function (type) {
+        var opt = document.createElement('option');
+        opt.value = type;
+        opt.textContent = (sectionSchemaMap[type] && sectionSchemaMap[type].label) ? sectionSchemaMap[type].label + ' (' + type + ')' : type;
+        if (type === defaultType) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+
+    return defaultType;
+}
+
+function getSectionIndex(card) {
+    var idx = parseInt(card.getAttribute('data-index'), 10);
+    if (!isNaN(idx)) {
+        return idx;
+    }
+    return null;
+}
+
+function refreshSectionFields(card) {
+    if (!card) return;
+
+    var typeSelect = card.querySelector('select[name^="section_type"], select[data-name="section_type"]');
+    if (!typeSelect) return;
+
+    var type = typeSelect.value;
+
+    // update hint text
+    var hint = card.querySelector('.hint');
+    if (hint) {
+        hint.textContent = sectionHints[type] || (sectionSchemaMap[type] && sectionSchemaMap[type].hint) || 'Vul de velden in die je nodig hebt voor dit type.';
+    }
+
+    // ensure card has an index for naming inputs
+    var idx = getSectionIndex(card);
+    if (idx === null) {
+        idx = 0;
+        card.setAttribute('data-index', idx);
+    }
+
+    // Read current values from existing fields so we don't lose user input on type change
+    var existingValues = {};
+    card.querySelectorAll('input[name^="section_fields["], textarea[name^="section_fields["], select[name^="section_fields["]').forEach(function (el) {
+        var match = el.name.match(/^section_fields\[(\d+)\]\[(.+)\]$/);
+        if (!match) return;
+        var key = match[2];
+        existingValues[key] = el.value;
+    });
+
+    // Build fields section from schema
     var schema = sectionSchemaMap[type] || {};
+    var editorFields = Array.isArray(schema.editor_fields) ? schema.editor_fields : (schema.fields ? Object.keys(schema.fields) : []);
+    var fieldsContainer = card.querySelector('.section-fields');
+    if (!fieldsContainer) return;
+    fieldsContainer.innerHTML = '';
+
+    editorFields.forEach(function (fieldKey) {
+        var fieldDef = (schema.fields && schema.fields[fieldKey]) || {type: 'string', label: fieldKey};
+        var value = existingValues[fieldKey] !== undefined ? existingValues[fieldKey] : (fieldDef.default ?? '');
+
+        var label = fieldDef.label || fieldKey;
+        var placeholder = fieldDef.placeholder || '';
+        var name = 'section_fields[' + idx + '][' + fieldKey + ']';
+
+        var html = '<div class="field-wrap" data-key="' + escapeHtml(fieldKey) + '">';
+        html += '<label>' + escapeHtml(label) + '</label>';
+
+        if (fieldDef.type === 'textarea' || fieldDef.type === 'html') {
+            var classAttr = fieldDef.type === 'html' ? ' class="wysiwyg"' : '';
+            html += '<textarea' + classAttr + ' name="' + escapeHtml(name) + '" placeholder="' + escapeHtml(placeholder) + '">' + escapeHtml(value) + '</textarea>';
+        } else if (fieldDef.type === 'select' && Array.isArray(fieldDef.options)) {
+            html += '<select name="' + escapeHtml(name) + '">';
+            fieldDef.options.forEach(function (opt) {
+                var optValue = typeof opt === 'object' ? (opt.value ?? '') : opt;
+                var optLabel = typeof opt === 'object' ? (opt.label ?? optValue) : opt;
+                var selected = optValue == value ? ' selected' : '';
+                html += '<option value="' + escapeHtml(optValue) + '"' + selected + '>' + escapeHtml(optLabel) + '</option>';
+            });
+            html += '</select>';
+        } else if (fieldDef.type === 'boolean') {
+            var checked = value === '1' || value === true || value === 'true' ? ' checked' : '';
+            html += '<label class="checkbox"><input type="checkbox" name="' + escapeHtml(name) + '" value="1"' + checked + '> ' + escapeHtml(label) + '</label>';
+        } else {
+            html += '<input type="text" name="' + escapeHtml(name) + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder) + '">';
+        }
+
+        html += '</div>';
+        fieldsContainer.insertAdjacentHTML('beforeend', html);
+    });
+
+    initWYSIWYG(fieldsContainer);
+
+    // portfolio custom editor (nested items) support
     var hasNestedItems = schema.fields && schema.fields.items && schema.fields.items.item;
     var portfolioWrap = card.querySelector('.portfolio-items');
     if (portfolioWrap) {
         if (hasNestedItems) {
             portfolioWrap.classList.remove('hidden');
-            var idx = getSectionIndex(card);
+            var rows = portfolioWrap.querySelector('.portfolio-rows');
+            if (rows) {
+                rows.setAttribute('data-index', idx);
+            }
             var existing = [];
             try {
                 existing = JSON.parse(card.getAttribute('data-items') || '[]');
@@ -503,14 +558,6 @@ function refreshSectionFields(card) {
             portfolioWrap.classList.add('hidden');
         }
     }
-
-// helper to pull numeric index from one of the input names
-function getSectionIndex(card) {
-    var inp = card.querySelector('input[name^="section_fields"]');
-    if (!inp) return null;
-    var m = inp.name.match(/^section_fields\[(\d+)\]/);
-    return m ? parseInt(m[1], 10) : null;
-}
 }
 
 function renderPortfolioRows(wrapper, items, sectionIndex) {
@@ -540,12 +587,13 @@ function addPortfolioRow(buttonOrContainer, sectionIndex, itemData) {
     var itemIdx = container.children.length;
     var div = document.createElement('div');
     div.className = 'portfolio-row';
-    div.innerHTML = '
-        <input type="text" placeholder="Image URL" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][image]" value="'+(itemData && itemData.image?itemData.image:'')+'">'
-        +'<input type="text" placeholder="Title" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][title]" value="'+(itemData && itemData.title?itemData.title:'')+'">'
-        +'<input type="text" placeholder="Subject" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][subject]" value="'+(itemData && itemData.subject?itemData.subject:'')+'">'
-        +'<input type="text" placeholder="Tags (comma)" name="section_fields['+sectionIdx+'][items]['+itemIdx+'][tags]" value="'+(itemData && Array.isArray(itemData.tags)?itemData.tags.join(','):'')+'">'
-        +'<button type="button" onclick="this.parentNode.remove()" class="btn btn-danger">×</button>';
+    div.innerHTML = `
+        <input type="text" placeholder="Image URL" name="section_fields[${sectionIdx}][items][${itemIdx}][image]" value="${itemData && itemData.image ? itemData.image : ''}">
+        <input type="text" placeholder="Title" name="section_fields[${sectionIdx}][items][${itemIdx}][title]" value="${itemData && itemData.title ? itemData.title : ''}">
+        <input type="text" placeholder="Subject" name="section_fields[${sectionIdx}][items][${itemIdx}][subject]" value="${itemData && itemData.subject ? itemData.subject : ''}">
+        <input type="text" placeholder="Tags (comma)" name="section_fields[${sectionIdx}][items][${itemIdx}][tags]" value="${itemData && Array.isArray(itemData.tags) ? itemData.tags.join(',') : ''}">
+        <button type="button" onclick="this.parentNode.remove()" class="btn btn-danger">×</button>
+    `;
     container.appendChild(div);
 }
 
@@ -556,6 +604,7 @@ function addSection() {
     var clone = template.content.cloneNode(true);
     var nextIndex = parseInt(list.getAttribute('data-next-index') || '<?php echo (int) $nextSectionIndex; ?>', 10);
 
+    // assign correct names and data attributes
     clone.querySelectorAll('[data-name]').forEach(function (el) {
         var key = el.getAttribute('data-name');
         if (key === 'section_type') {
@@ -564,25 +613,25 @@ function addSection() {
             el.setAttribute('name', 'section_fields[' + nextIndex + '][' + key + ']');
         }
     });
-    // ensure portfolio rows container knows its section index
-    clone.querySelectorAll('.portfolio-rows').forEach(function(el){
-        el.setAttribute('data-index', nextIndex);
-    });
-    // remove any data-items that might have been cloned
-    clone.querySelectorAll('.section-card').forEach(function(el){ el.removeAttribute('data-items'); });
+
+    var card = clone.querySelector('.section-card');
+    if (card) {
+        card.setAttribute('data-index', nextIndex);
+        card.setAttribute('data-fields', '{}');
+    }
 
     list.appendChild(clone);
-    // ensure wysiwyg editors are initialised for any textarea inside the new fragment
-    initWYSIWYG(clone);
     list.setAttribute('data-next-index', String(nextIndex + 1));
 
     var lastCard = list.querySelector('.section-card:last-child');
     if (lastCard) {
-        refreshSectionFields(lastCard);
         var select = lastCard.querySelector('select[name^="section_type"]');
         if (select) {
+            populateTypeSelect(select);
             select.addEventListener('change', function () { refreshSectionFields(lastCard); });
         }
+
+        refreshSectionFields(lastCard);
     }
 }
 
@@ -594,11 +643,18 @@ function removeSection(button) {
 
 document.getElementById('sections-list').setAttribute('data-next-index', '<?php echo (int) $nextSectionIndex; ?>');
 document.querySelectorAll('#sections-list .section-card').forEach(function (card) {
-    refreshSectionFields(card);
+    // Ensure each card has an index and type selector initialized
+    if (!card.getAttribute('data-index')) {
+        card.setAttribute('data-index', card.dataset.index || 0);
+    }
+
     var select = card.querySelector('select[name^="section_type"]');
     if (select) {
+        populateTypeSelect(select, select.value);
         select.addEventListener('change', function () { refreshSectionFields(card); });
     }
+
+    refreshSectionFields(card);
 });
 
 // initialize/refresh wysiwyg editor instances
@@ -625,8 +681,63 @@ function initWYSIWYG(root) {
     });
 }
 
+function showAjaxNotice(message, isError) {
+    var notice = document.getElementById('ajax-notice');
+    if (!notice) return;
+    notice.textContent = message;
+    notice.style.display = 'block';
+    notice.className = isError ? 'error' : 'notice';
+}
+
+function savePageAjax(event) {
+    var form = event.target;
+    event.preventDefault();
+
+    var submitButtons = form.querySelectorAll('button[type="submit"]');
+    submitButtons.forEach(function (btn) { btn.disabled = true; });
+
+    showAjaxNotice('Opslaan...', false);
+
+    var formData = new FormData(form);
+    formData.append('ajax', '1');
+
+    fetch('/api/save-page', {
+        method: 'POST',
+        body: formData,
+    })
+        .then(function (res) {
+            return res.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success) {
+                showAjaxNotice(data && data.error ? data.error : 'Opslaan mislukt.', true);
+                return;
+            }
+
+            if (data.slug) {
+                var slugInput = document.getElementById('post_name');
+                if (slugInput) {
+                    slugInput.value = data.slug;
+                }
+            }
+
+            showAjaxNotice(data.message || 'Opgeslagen.', false);
+        })
+        .catch(function () {
+            showAjaxNotice('Er is iets misgegaan bij verbinden met de server.', true);
+        })
+        .finally(function () {
+            submitButtons.forEach(function (btn) { btn.disabled = false; });
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function(){
     initWYSIWYG();
+
+    var form = document.querySelector('form[action*="/dashboard/pages/edit"]');
+    if (form) {
+        form.addEventListener('submit', savePageAjax);
+    }
 });
 </script>
 </body>

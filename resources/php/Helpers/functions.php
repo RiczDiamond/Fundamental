@@ -766,18 +766,47 @@
 
             $name = basename($file, '.php');
 
-            // simple conversion of `fields` map to the expected shape
+            // Normalize block schema definitions into a consistent internal shape.
+            // Block templates can return a minimal schema (e.g. only `fields`),
+            // but we want a predictable structure for editors/front-end rendering.
             if (isset($schema['fields']) && is_array($schema['fields'])) {
-                $defaults = [];
-                foreach ($schema['fields'] as $key => $def) {
-                    $defaults[$key] = $def['default'] ?? '';
+                $fieldDefs = $schema['fields'];
+
+                // Ensure each field has at least a type + label.
+                foreach ($fieldDefs as $key => $def) {
+                    if (!is_array($def)) {
+                        $def = ['type' => 'string'];
+                    }
+                    if (!isset($def['type'])) {
+                        $def['type'] = 'string';
+                    }
+                    if (!isset($def['label'])) {
+                        $def['label'] = ucwords(str_replace(['-', '_'], ' ', $key));
+                    }
+                    $fieldDefs[$key] = $def;
                 }
+
+                $defaults = [];
+                $sanitize = [];
+
+                foreach ($fieldDefs as $key => $def) {
+                    $defaults[$key] = $def['default'] ?? '';
+                    if (isset($def['sanitize']) && is_callable($def['sanitize'])) {
+                        $sanitize[$key] = $def['sanitize'];
+                    }
+                }
+
+                $editorFields = $schema['editor_fields'] ?? array_keys($fieldDefs);
+                $dataFields = $schema['data_fields'] ?? array_keys($fieldDefs);
+
                 $schema = [
+                    'label'         => $schema['label'] ?? ucfirst($name),
                     'hint'          => $schema['hint'] ?? '',
-                    'editor_fields' => array_keys($schema['fields']),
-                    'data_fields'   => array_keys($schema['fields']),
+                    'fields'        => $fieldDefs,
+                    'editor_fields' => array_values($editorFields),
+                    'data_fields'   => array_values($dataFields),
                     'defaults'      => $defaults,
-                    'sanitize'      => $schema['sanitize'] ?? [],
+                    'sanitize'      => array_merge($schema['sanitize'] ?? [], $sanitize),
                 ];
             }
 
@@ -881,29 +910,30 @@
     }
 
     /**
-     * @return string[]
+     * Convenience aliases for the "block" concept (WordPress-style).
      */
-    function get_section_editor_fields(string $type): array {
-        $schema = get_section_schemas()[$type] ?? null;
-
-        if (!is_array($schema) || !isset($schema['editor_fields']) || !is_array($schema['editor_fields'])) {
-            return ['title', 'content'];
-        }
-
-        return array_values(array_map('strval', $schema['editor_fields']));
+    function get_block_types(): array {
+        return get_section_types();
     }
 
-    /**
-     * @return array<string, array<int, string>>
-     */
-    function get_section_editor_fields_map(): array {
-        $map = [];
+    function get_block_schemas(): array {
+        return get_section_schemas();
+    }
 
-        foreach (get_section_types() as $type) {
-            $map[$type] = get_section_editor_fields($type);
-        }
+    function get_block_schema(string $type): array {
+        return get_section_schemas()[$type] ?? [];
+    }
 
-        return $map;
+    function is_valid_block_type(string $type): bool {
+        return is_valid_section_type($type);
+    }
+
+    function register_block_type(string $type, array $schema): void {
+        register_section_type($type, $schema);
+    }
+
+    function render_block(string $type, array $fields = [], array $attrs = []): string {
+        return render_section_to_string(['type' => $type, 'fields' => $fields, 'attrs' => $attrs]);
     }
 
     function section_type_hint(string $type): string {

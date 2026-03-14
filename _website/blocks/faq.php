@@ -12,11 +12,29 @@
  */
 
 $block_schema = [
-    'hint'=>'Gebruikt: title, items (vraag/antwoord)',
-    'fields'=>[
-        'title'=>['type'=>'string','default'=>''],
-        'items'=>['type'=>'list','default'=>[]],
+    'label' => 'FAQ',
+    'hint' => 'Gebruikt: title, items (vraag/antwoord)',
+    'fields' => [
+        'title' => [
+            'type' => 'string',
+            'label' => 'Titel',
+            'default' => '',
+            'placeholder' => 'Bijv. Veelgestelde vragen',
+        ],
+        'items' => [
+            'type' => 'list',
+            'label' => 'Vraag & antwoord',
+            'default' => [],
+        ],
+        'items_lines' => [
+            'type' => 'textarea',
+            'label' => 'Items (regel per vraag/antwoord)',
+            'default' => '',
+            'placeholder' => 'vraag|antwoord per regel',
+        ],
     ],
+    'editor_fields' => ['title', 'items_lines'],
+    'data_fields' => ['title', 'items'],
 ];
 if (!empty($GLOBALS['_BLOCK_SCHEMA_ONLY'])) {
     return $block_schema;

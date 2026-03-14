@@ -12,10 +12,21 @@
  */
 
 $block_schema = [
+    'label' => 'Hero',
     'hint' => 'Gebruikt: headline, subline',
     'fields' => [
-        'headline' => ['type'=>'string','default'=>''],
-        'subline'  => ['type'=>'html','default'=>''],
+        'headline' => [
+            'type' => 'string',
+            'label' => 'Headline',
+            'default' => '',
+            'placeholder' => 'Bijv. Welkom bij…',
+        ],
+        'subline'  => [
+            'type' => 'html',
+            'label' => 'Subtekst',
+            'default' => '',
+            'placeholder' => 'Korte introductie of missie',
+        ],
     ],
 ];
 
