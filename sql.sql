@@ -195,27 +195,74 @@ CREATE TABLE `usermeta` (
 -- Table structure for table `users`
 --
 
-CREATE TABLE `users` (
-  `id` bigint UNSIGNED NOT NULL,
-  `user_login` varchar(60) NOT NULL DEFAULT '',
-  `user_pass` varchar(255) NOT NULL DEFAULT '',
-  `user_nicename` varchar(50) NOT NULL DEFAULT '',
-  `user_email` varchar(100) NOT NULL DEFAULT '',
-  `user_url` varchar(100) NOT NULL DEFAULT '',
-  `user_registered` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `user_activation_key` varchar(255) NOT NULL DEFAULT '',
-  `user_status` int NOT NULL DEFAULT '0',
-  `display_name` varchar(250) NOT NULL DEFAULT ''
+CREATE TABLE users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_login VARCHAR(60) NOT NULL,
+  user_pass VARCHAR(255) NOT NULL,
+  display_name VARCHAR(250) NOT NULL,
+  user_nicename VARCHAR(50) NOT NULL,
+  user_email VARCHAR(100) NOT NULL,
+  user_url VARCHAR(255) DEFAULT NULL,
+  user_registered DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  user_activation_key VARCHAR(255) DEFAULT NULL,
+  user_status TINYINT NOT NULL DEFAULT 0,
+  user_role VARCHAR(20) NOT NULL DEFAULT 'user',
+  last_login DATETIME DEFAULT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_user_login (user_login),
+  UNIQUE KEY uq_user_email (user_email),
+  INDEX idx_user_role (user_role),
+  INDEX idx_last_login (last_login)
+) ENGINE=InnoDB 
+DEFAULT CHARSET=utf8mb4 
+COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Table structure for table `audit_log`
+--
+
+CREATE TABLE `audit_log` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `actor_id` bigint UNSIGNED NOT NULL,
+  `target_id` bigint UNSIGNED DEFAULT NULL,
+  `action` varchar(100) NOT NULL,
+  `meta` text,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `actor_id` (`actor_id`),
+  KEY `target_id` (`target_id`),
+  KEY `action` (`action`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_activation_key`, `user_status`, `display_name`) VALUES
-(1, 'admin', '$2y$10$QWXZOz4qh3fxOhQnFQsALOxWPHZIrT.IbfzFXEQGtARJXEVudoNkG', 'admin', 'jjrmol2005@gmail.com', '', '2026-03-08 21:01:06', '', 0, 'Administrator'),
-(2, 'editor', '$2y$10$QWXZOz4qh3fxOhQnFQsALOxWPHZIrT.IbfzFXEQGtARJXEVudoNkG', 'editor', 'jjrmol2005@gmail.com', '', '2026-03-08 21:01:06', '', 0, 'Editor');
+INSERT INTO users 
+(user_login, user_pass, display_name, user_nicename, user_email, user_role, last_login)
+VALUES
+(
+  'admin',
+  '$2y$10$aPPoJePviuc6Ut8zpvVk/uMqdAGRBSbjCcOPHtG/xXUbjO3UErYoW',
+  'Administrator',
+  'admin',
+  'admin@example.com',
+  'admin',
+  '2026-03-15 03:07:23'
+),
+(
+  'editor',
+  '$2y$10$aPPoJePviuc6Ut8zpvVk/uMqdAGRBSbjCcOPHtG/xXUbjO3UErYoW',
+  'Editor',
+  'editor',
+  'editor@example.com',
+  'editor',
+  NULL
+);
 
+COMMIT;
 --
 -- Indexes for dumped tables
 --

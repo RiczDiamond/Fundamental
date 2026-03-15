@@ -181,9 +181,10 @@ if ($action === 'reset') {
         exit;
     }
 
-    if (strlen($new) < 8) {
+    $pwError = mol_validate_password($new);
+    if ($pwError !== null) {
         http_response_code(400);
-        echo json_encode(['error' => 'Wachtwoord moet minstens 8 tekens lang zijn.']);
+        echo json_encode(['error' => $pwError]);
         exit;
     }
 
@@ -221,6 +222,7 @@ if ($action === 'reset') {
     $newHash = $auth->hash_password($new);
     $repo->update_user_password($userId, $newHash);
     $repo->delete_reset_token($selector);
+    mol_audit_log($userId, $userId, 'password_reset', []);
 
     echo json_encode(['success' => 'Uw wachtwoord is gewijzigd. U kunt nu inloggen.']);
     exit;

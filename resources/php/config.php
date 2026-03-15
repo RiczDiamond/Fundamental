@@ -99,6 +99,9 @@
         'PASS' => cfg_env('MAIL_PASS', ''),
         'SECURE' => cfg_env('MAIL_SECURE', 'tls'),
         'DEBUG' => cfg_env_int('MAIL_DEBUG', 0),
+        // Whether to verify the SMTP server certificate (true by default).
+        // Set to 0 for hosts with mismatched certificates (e.g. shared hosting TLS names).
+        'VERIFY_SSL' => cfg_env_bool('MAIL_VERIFY_SSL', true),
         // Optional DKIM settings - only used if configured.
         'DKIM_DOMAIN' => cfg_env('MAIL_DKIM_DOMAIN', ''),
         'DKIM_SELECTOR' => cfg_env('MAIL_DKIM_SELECTOR', ''),

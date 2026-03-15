@@ -40,6 +40,12 @@
             $_SESSION['user_id'] = (int) ($user['id'] ?? 0);
             $_SESSION['logged_in_at'] = time();
 
+            // Track active session for logout-on-all-devices.
+            $this->register_session((int) ($user['id'] ?? 0));
+
+            // Track last login for audit/user overview.
+            $this->account->set_last_login((int) ($user['id'] ?? 0), date('Y-m-d H:i:s'));
+
             if ($remember) {
                 $lifetime = time() + (60 * 60 * 24 * 30);
                 $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
@@ -49,10 +55,61 @@
             return true;
         }
 
+        private function session_id(): string
+        {
+            if (session_status() !== PHP_SESSION_ACTIVE) {
+                session_start();
+            }
+            return session_id();
+        }
+
+        private function register_session(int $userId): void
+        {
+            $sid = $this->session_id();
+            if (!$sid) {
+                return;
+            }
+
+            $metaKey = 'session_' . preg_replace('/[^a-z0-9]/i', '', $sid);
+            $metaValue = json_encode([
+                'created_at' => date('c'),
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+            ], JSON_THROW_ON_ERROR);
+
+            $this->account->set_user_meta($userId, $metaKey, $metaValue);
+        }
+
+        private function unregister_session(int $userId, string $sessionId): void
+        {
+            $metaKey = 'session_' . preg_replace('/[^a-z0-9]/i', '', $sessionId);
+            $this->account->delete_user_meta($userId, $metaKey);
+        }
+
+        public function logoutAllSessions(int $userId): void
+        {
+            // Remove all session entries for this user.
+            $this->account->delete_user_meta_like($userId, 'session_%');
+        }
+
+        public function refreshSession(): void
+        {
+            $userId = $this->id();
+            if (!$userId) {
+                return;
+            }
+            $this->register_session($userId);
+        }
+
         public function logout(): void
         {
             if (session_status() !== PHP_SESSION_ACTIVE) {
                 session_start();
+            }
+
+            $userId = $_SESSION['user_id'] ?? null;
+            if ($userId) {
+                $this->unregister_session((int) $userId, $this->session_id());
             }
 
             $_SESSION = [];
@@ -77,6 +134,14 @@
 
             $userId = (int) $userId;
             if ($userId <= 0) {
+                return false;
+            }
+
+            // Ensure current session is registered (logout all devices support)
+            $sid = $this->session_id();
+            $metaKey = 'session_' . preg_replace('/[^a-z0-9]/i', '', $sid);
+            $meta = $this->account->get_user_meta($userId, $metaKey);
+            if ($meta === null) {
                 return false;
             }
 

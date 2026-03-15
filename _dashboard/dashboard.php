@@ -6,7 +6,7 @@
     // Determine section from URL: /dashboard/{section}
     $section = $url[1] ?? 'home';
 
-    $allowed = ['home', 'account', 'posts', 'users'];
+    $allowed = ['home', 'account', 'posts', 'users', 'verify-email'];
 
     if (!in_array($section, $allowed, true)) {
         http_response_code(404);
@@ -17,10 +17,15 @@
     require_once __DIR__ . '/views/header.php';
 
     $viewFile = __DIR__ . '/views/' . $section . '.php';
+
     if (is_file($viewFile)) {
+    
         require_once $viewFile;
-    } else {
+    
+        } else {
+    
         echo '<div style="padding:24px;">View niet gevonden: ' . esc_attr($section) . '</div>';
+    
     }
 
     require_once __DIR__ . '/views/footer.php';

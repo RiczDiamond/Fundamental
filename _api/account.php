@@ -89,6 +89,20 @@ function handle_api_account_put(Auth $auth): void
         }
     }
 
+    // Normalize and validate URL
+    if (!empty($data['user_url'])) {
+        $userUrl = trim((string) $data['user_url']);
+        if ($userUrl !== '' && !preg_match('#^https?://#i', $userUrl)) {
+            $userUrl = 'https://' . $userUrl;
+        }
+        if (!filter_var($userUrl, FILTER_VALIDATE_URL)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Ongeldige website-URL. Gebruik een volledige URL (inclusief http/https).']);
+            return;
+        }
+        $data['user_url'] = $userUrl;
+    }
+
     // Validate login uniqueness
     if (!empty($data['user_login'])) {
         $other = $account->get_user_by_login($data['user_login']);

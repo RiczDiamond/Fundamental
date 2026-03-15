@@ -1,0 +1,175 @@
+[2026-03-15T00:14:43+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:14:43+00:00] request body start
+[2026-03-15T00:14:43+00:00] request body: {"action":"request","username":"boefricardo@gmail.com"}
+[2026-03-15T00:14:43+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:14:43+00:00] request body end
+[2026-03-15T00:15:35+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:15:35+00:00] request body start
+[2026-03-15T00:15:35+00:00] request body: {"action":"request","username":"admin"}
+[2026-03-15T00:15:35+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:15:35+00:00] request body end
+[2026-03-15T00:15:48+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:15:48+00:00] request body start
+[2026-03-15T00:15:48+00:00] request body: {"action":"reset","selector":"06706a157c301cb2d2","token":"5644fd84b39a3183fd6930b0748bf0d806e705d953a0a330bd516df3bcb1d00a","new_password":"test","new_password_confirm":"test"}
+[2026-03-15T00:15:48+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:15:48+00:00] request body end
+[2026-03-15T00:16:42+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:16:42+00:00] request body start
+[2026-03-15T00:16:42+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:16:42+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:16:42+00:00] request body end
+[2026-03-15T00:17:48+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:17:48+00:00] request body start
+[2026-03-15T00:17:48+00:00] request body: {"action":"request","username":"j.brouwer@molwebsites.nl"}
+[2026-03-15T00:17:48+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:17:48+00:00] request body end
+[2026-03-15T00:19:31+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:19:31+00:00] request body start
+[2026-03-15T00:19:31+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:19:31+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:19:31+00:00] request body end
+[2026-03-15T00:19:34+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:19:34+00:00] request body start
+[2026-03-15T00:19:34+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:19:34+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:19:34+00:00] request body end
+[2026-03-15T00:20:13+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:20:13+00:00] request body start
+[2026-03-15T00:20:13+00:00] request body: {"action":"request","username":"j.brouwer@molwebsites.nl"}
+[2026-03-15T00:20:13+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:20:13+00:00] request body end
+[2026-03-15T00:20:26+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:20:26+00:00] request body start
+[2026-03-15T00:20:26+00:00] request body: {"action":"request","username":"boefricardo@gmail.com"}
+[2026-03-15T00:20:26+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:20:26+00:00] request body end
+[2026-03-15T00:20:29+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:20:29+00:00] request body start
+[2026-03-15T00:20:29+00:00] request body: {"action":"request","username":"jjrmol2005@gmail.com"}
+[2026-03-15T00:20:29+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:20:29+00:00] request body end
+[2026-03-15T00:20:46+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:20:46+00:00] request body start
+[2026-03-15T00:20:46+00:00] request body: {"action":"request","username":"boefricardo@gmail.com"}
+[2026-03-15T00:20:46+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:20:46+00:00] request body end
+[2026-03-15T00:25:39+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:25:39+00:00] request body start
+[2026-03-15T00:25:39+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:25:39+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:25:39+00:00] request body end
+[2026-03-15T00:25:52+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:25:52+00:00] request body start
+[2026-03-15T00:25:52+00:00] request body: {"action":"request","username":"jjrmol2005@gmail.com"}
+[2026-03-15T00:25:52+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:25:52+00:00] request body end
+[2026-03-15T00:26:43+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:26:43+00:00] request body start
+[2026-03-15T00:26:43+00:00] request body: {"action":"request","username":"j.brouwer@molwebsites.nl"}
+[2026-03-15T00:26:43+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:26:43+00:00] request body end
+[2026-03-15T00:26:50+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:26:50+00:00] request body start
+[2026-03-15T00:26:50+00:00] request body: {"action":"request","username":"jjrmol2005@gmail.com"}
+[2026-03-15T00:26:50+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:26:50+00:00] request body end
+[2026-03-15T00:31:32+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:31:32+00:00] request body start
+[2026-03-15T00:31:32+00:00] request body: {"action":"request","username":"jjrmol2005@gmail.com"}
+[2026-03-15T00:31:32+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:31:32+00:00] request body end
+[2026-03-15T00:31:49+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:31:49+00:00] request body start
+[2026-03-15T00:31:49+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:31:49+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:31:49+00:00] request body end
+[2026-03-15T00:34:08+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:34:08+00:00] request body start
+[2026-03-15T00:34:08+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:34:08+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:34:08+00:00] request body end
+[2026-03-15T00:34:21+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:34:21+00:00] request body start
+[2026-03-15T00:34:21+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:34:21+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:34:21+00:00] request body end
+[2026-03-15T00:35:47+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:35:47+00:00] request body start
+[2026-03-15T00:35:47+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:35:47+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:35:47+00:00] request body end
+[2026-03-15T00:36:42+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:36:42+00:00] request body start
+[2026-03-15T00:36:42+00:00] request body: {"action":"request","username":"j.brouwer@molwebsites.nl"}
+[2026-03-15T00:36:42+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:36:42+00:00] request body end
+[2026-03-15T00:36:42+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:36:42+00:00] request body start
+[2026-03-15T00:36:42+00:00] request body: {"action":"request","username":"j.brouwer@molwebsites.nl"}
+[2026-03-15T00:36:42+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:36:42+00:00] request body end
+[2026-03-15T00:36:44+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:36:44+00:00] request body start
+[2026-03-15T00:36:44+00:00] request body: {"action":"request","username":"boefricardo@gmail.com"}
+[2026-03-15T00:36:44+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:36:44+00:00] request body end
+[2026-03-15T00:36:45+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:36:45+00:00] request body start
+[2026-03-15T00:36:45+00:00] request body: {"action":"request","username":"jjrmol2005@gmail.com"}
+[2026-03-15T00:36:45+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:36:45+00:00] request body end
+[2026-03-15T00:39:45+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:39:45+00:00] request body start
+[2026-03-15T00:39:45+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:39:45+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:39:45+00:00] request body end
+[2026-03-15T00:40:07+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:40:07+00:00] request body start
+[2026-03-15T00:40:07+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:40:07+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:40:07+00:00] request body end
+[2026-03-15T00:40:28+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T00:40:28+00:00] request body start
+[2026-03-15T00:40:28+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T00:40:28+00:00] MAIL_DEBUG: 2
+[2026-03-15T00:40:28+00:00] request body end
+[2026-03-15T01:01:33+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:01:33+00:00] request body start
+[2026-03-15T01:01:33+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:01:33+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:01:33+00:00] request body end
+[2026-03-15T01:05:05+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:05:05+00:00] request body start
+[2026-03-15T01:05:05+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:05:05+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:05:05+00:00] request body end
+[2026-03-15T01:15:52+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:15:52+00:00] request body start
+[2026-03-15T01:15:52+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:15:52+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:15:52+00:00] request body end
+[2026-03-15T01:16:13+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:16:13+00:00] request body start
+[2026-03-15T01:16:13+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:16:13+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:16:13+00:00] request body end
+[2026-03-15T01:18:51+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:18:51+00:00] request body start
+[2026-03-15T01:18:51+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:18:51+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:18:51+00:00] request body end
+[2026-03-15T01:19:16+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:19:16+00:00] request body start
+[2026-03-15T01:19:16+00:00] request body: {"action":"request","username":"info@ricardomol.nl"}
+[2026-03-15T01:19:16+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:19:16+00:00] request body end
+[2026-03-15T01:20:07+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:20:07+00:00] request body start
+[2026-03-15T01:20:07+00:00] request body: {"action":"request","username":"ss107383@ricardomol.nl"}
+[2026-03-15T01:20:07+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:20:07+00:00] request body end
+[2026-03-15T01:21:49+00:00] reached forgot-password endpoint (DIR=C:\laragon\www\fundamental/)
+[2026-03-15T01:21:49+00:00] request body start
+[2026-03-15T01:21:49+00:00] request body: {"action":"request","username":"ss107383@ricardomol.nl"}
+[2026-03-15T01:21:49+00:00] MAIL_DEBUG: 2
+[2026-03-15T01:21:49+00:00] request body end

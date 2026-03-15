@@ -1,0 +1,18 @@
+/* Minimal Dashicons-like implementation (local, no external font).
+   Only includes the icons used on the login form (visibility / hidden). */
+
+.dashicons {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.dashicons-visibility:before {
+    content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7z' stroke='currentColor' stroke-width='2' fill='none'/%3E%3Cpath d='M12 9a3 3 0 100 6 3 3 0 000-6z' stroke='currentColor' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+}
+
+.dashicons-hidden:before {
+    content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.94 17.94A10.85 10.85 0 0112 19c-5 0-9.27-3.11-11-7a10.86 10.86 0 012.05-3.38' stroke='currentColor' stroke-width='2' fill='none'/%3E%3Cpath d='M1 1l22 22' stroke='currentColor' stroke-width='2' fill='none'/%3E%3Cpath d='M9.88 9.88a3 3 0 004.24 4.24' stroke='currentColor' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+}

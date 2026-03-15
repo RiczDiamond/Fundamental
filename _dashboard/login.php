@@ -99,15 +99,22 @@
                         >
                     </div>
 
-                    <div class="input-group">
+                    <div class="input-group password">
                         <label for="password">Wachtwoord</label>
-                        <input 
-                            type="password" 
-                            id="password"
-                            name="password" 
-                            placeholder="••••••••" 
-                            required
-                        >
+                        <div class="input-with-toggle">
+                            <input 
+                                type="password" 
+                                id="password"
+                                name="password" 
+                                class="password-toggle-enabled"
+                                placeholder="••••••••" 
+                                required
+                            >
+                            <button type="button" class="password-toggle" aria-label="Toon/verberg wachtwoord">
+                                <span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+                                <span class="dashicons dashicons-hidden" aria-hidden="true" style="display:none;"></span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="checkbox-wrapper">

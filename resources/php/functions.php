@@ -87,6 +87,110 @@
     }
 
     /**
+     * Validate a password against the current password policy.
+     *
+     * @param string $password
+     * @return string|null Returns null if valid, otherwise returns an error message.
+     */
+    function mol_validate_password(string $password): ?string
+    {
+        if (strlen($password) < 8) {
+            return 'Wachtwoord moet minstens 8 tekens lang zijn.';
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            return 'Wachtwoord moet minimaal één hoofdletter bevatten.';
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            return 'Wachtwoord moet minimaal één kleine letter bevatten.';
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            return 'Wachtwoord moet minimaal één cijfer bevatten.';
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $password)) {
+            return 'Wachtwoord moet minimaal één speciaal teken bevatten.';
+        }
+        return null;
+    }
+
+    /**
+     * Role-based capabilities map.
+     * Add/adjust capabilities as needed for your RBAC model.
+     *
+     * @return array<string, string[]>
+     */
+    function mol_role_capabilities(): array
+    {
+        return [
+            'admin' => ['view_users', 'manage_users', 'view_audit_log'],
+            'editor' => ['view_users'],
+            'user' => [],
+        ];
+    }
+
+    function mol_role_has_capability(string $role, string $capability): bool
+    {
+        $caps = mol_role_capabilities();
+        return in_array($capability, $caps[$role] ?? [], true);
+    }
+
+    /**
+     * Audit log helper.
+     *
+     * @param int         $actorId  The user who performed the action.
+     * @param int|null    $targetId The target user (optional).
+     * @param string      $action   A short action identifier (e.g. "user_created").
+     * @param array       $meta     Optional additional context.
+     */
+    function mol_audit_log(int $actorId, ?int $targetId, string $action, array $meta = []): bool
+    {
+        try {
+            return insert('audit_log', [
+                'actor_id' => $actorId,
+                'target_id' => $targetId,
+                'action' => $action,
+                'meta' => json_encode($meta, JSON_THROW_ON_ERROR),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (Throwable $e) {
+            // Audit log is best-effort; don't block user operations if it fails.
+            $msg = $e->getMessage();
+            if (strpos($msg, "doesn't exist") !== false || strpos($msg, '1146') !== false) {
+                // Try creating the audit_log table automatically.
+                @db_query(
+                    "CREATE TABLE IF NOT EXISTS " . table('audit_log') . " (
+                        id bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+                        actor_id bigint UNSIGNED NOT NULL,
+                        target_id bigint UNSIGNED DEFAULT NULL,
+                        action varchar(100) NOT NULL,
+                        meta text,
+                        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (id),
+                        KEY actor_id (actor_id),
+                        KEY target_id (target_id),
+                        KEY action (action)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+                );
+
+                try {
+                    return insert('audit_log', [
+                        'actor_id' => $actorId,
+                        'target_id' => $targetId,
+                        'action' => $action,
+                        'meta' => json_encode($meta, JSON_THROW_ON_ERROR),
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ]);
+                } catch (Throwable $e2) {
+                    error_log('Audit log failed after creating table: ' . $e2->getMessage());
+                    return false;
+                }
+            }
+
+            error_log('Audit log failed: ' . $msg);
+            return false;
+        }
+    }
+
+    /**
      * Send an email using PHPMailer (SMTP) when available.
      *
      * @param string       $recipient
@@ -163,11 +267,28 @@
                     }
                 }
 
-                // Ensure the envelope sender matches the authenticated SMTP user where possible.
-                // This improves deliverability (SPF/DMARC) when using a matching SMTP domain.
-                $mail->setFrom($from, $from_name);
-                $mail->Sender = $from; // envelope-from
+                // Ensure the envelope sender matches the authenticated SMTP user, to prevent
+                // SendAsDenied/DMARC failures for custom From domains.
+                $envelopeFrom = MAIL['USER'] ?? $from;
+                $mail->setFrom($envelopeFrom, $from_name);
+                $mail->Sender = $envelopeFrom; // envelope-from (used for SMTP MAIL FROM)
                 $mail->addAddress($recipient);
+
+                // If the desired From address differs from the authenticated SMTP account,
+                // set it as Reply-To so replies go to the expected address.
+                if ($from !== $envelopeFrom && $from !== '') {
+                    $mail->addReplyTo($from, $from_name);
+
+                    // Log this mismatch so we can troubleshoot custom domain sending.
+                    $warning = sprintf(
+                        "[%s] INFO: SMTP user '%s' differs from From '%s' - using Reply-To.\n",
+                        date('c'),
+                        $envelopeFrom,
+                        $from
+                    );
+                    @file_put_contents(DIR . 'mail.log', $warning, FILE_APPEND | LOCK_EX);
+                    @file_put_contents(DIR . 'resources/mail.log', $warning, FILE_APPEND | LOCK_EX);
+                }
 
                 if ($reply_to !== '') {
                     $mail->addReplyTo($reply_to, $reply_to_name);
@@ -205,6 +326,17 @@
                 $mail->isHTML(true);
                 $mail->Body = $htmlMessage;
                 $mail->AltBody = strip_tags($message);
+
+                // SSL verification settings (useful for shared hosting/mismatched TLS names)
+                if (empty(MAIL['VERIFY_SSL'])) {
+                    $mail->SMTPOptions = [
+                        'ssl' => [
+                            'verify_peer' => false,
+                            'verify_peer_name' => false,
+                            'allow_self_signed' => true,
+                        ],
+                    ];
+                }
 
                 // Always attempt to send, even when debug output is enabled.
                 // Debug mode 2 will still log SMTP conversation (if available).
@@ -246,7 +378,13 @@
         $headers[] = 'MIME-Version: 1.0';
         $headers[] = 'Content-Type: text/plain; charset=UTF-8';
 
-        $sent = mail($recipient, $subject, $message, implode("\r\n", $headers));
+        $envelopeFrom = MAIL['USER'] ?? $from;
+        $additionalParams = '';
+        if ($envelopeFrom) {
+            $additionalParams = '-f' . escapeshellarg($envelopeFrom);
+        }
+
+        $sent = mail($recipient, $subject, $message, implode("\r\n", $headers), $additionalParams);
         if ($sent === true) {
             return true;
         }
