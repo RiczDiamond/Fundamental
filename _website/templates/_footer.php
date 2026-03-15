@@ -1,68 +1,3 @@
-        <?php
-            $footerMenuItems = [];
-
-            if (isset($link) && $link instanceof PDO) {
-                $rawFooterMenu = get_option_value($link, 'dashboard_menu_footer', '[]');
-                $decodedFooterMenu = json_decode((string) $rawFooterMenu, true);
-
-                if (is_array($decodedFooterMenu)) {
-                    foreach ($decodedFooterMenu as $item) {
-                        if (!is_array($item)) {
-                            continue;
-                        }
-
-                        $label = trim((string) ($item['label'] ?? ''));
-                        $url = trim((string) ($item['url'] ?? ''));
-
-                        if ($label === '' || $url === '') {
-                            continue;
-                        }
-
-                        $footerMenuItems[] = [
-                            'id' => trim((string) ($item['id'] ?? '')),
-                            'parent_id' => trim((string) ($item['parent_id'] ?? '')),
-                            'label' => $label,
-                            'url' => $url,
-                        ];
-                    }
-                }
-            }
-        ?>
-
-        <?php if (!empty($footerMenuItems)): ?>
-            <?php
-                $footerByParent = [];
-                foreach ($footerMenuItems as $menuItem) {
-                    $parentId = (string) ($menuItem['parent_id'] ?? '');
-                    $footerByParent[$parentId][] = $menuItem;
-                }
-
-                $renderFooterTree = function (string $parentId = '', int $depth = 0) use (&$renderFooterTree, $footerByParent): void {
-                    if (empty($footerByParent[$parentId])) {
-                        return;
-                    }
-
-                    echo '<ul class="footer-menu level-' . (int) $depth . '">';
-
-                    foreach ($footerByParent[$parentId] as $menuItem) {
-                        $id = (string) ($menuItem['id'] ?? '');
-                        echo '<li>';
-                        echo '<a href="' . esc_url((string) $menuItem['url']) . '">';
-                        echo esc_html((string) $menuItem['label']);
-                        echo '</a>';
-                        $renderFooterTree($id, $depth + 1);
-                        echo '</li>';
-                    }
-
-                    echo '</ul>';
-                };
-
-                echo '<nav aria-label="Footer menu">';
-                $renderFooterTree('');
-                echo '</nav>';
-            ?>
-        <?php endif; ?>
-
 	<footer>
 
 			<div class="columns">
@@ -132,9 +67,8 @@
 				<div class="column">
 					<h3>Hoogeveen</h3>
 					<address>
-						<b>De Drentse Werf</b>
-						De Vos van Steenwijklaan 75<br>
-						7902 NP Hoogeveen
+						Geen fysieke locatie<br>
+                        Postadres: Postbus 123, 7900 AB Hoogeveen
 					</address>
 				</div>
 

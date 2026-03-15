@@ -52,19 +52,54 @@ body { margin: 0; font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSyst
 .nav { display: flex; flex-direction: column; gap: 6px; }
 
 .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 14px;
-    color: var(--sidebar-text); text-decoration: none; font-weight: 500;
-    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    border-radius: 10px;
     transition: background 0.2s, color 0.2s;
 }
-.nav-item:hover { background: var(--sidebar-active-bg); color: #fff; }
-.nav-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active); }
 
-/* Dropdown / submenu styling */
-.nav .submenu { background: var(--sidebar-dropdown-bg); }
-.nav .submenu a { color: var(--sidebar-dropdown-text); }
-.nav .submenu a:hover { color: var(--sidebar-active); background: var(--sidebar-active-bg); }
+.nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 16px;
+}
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+.nav-item.active {
+    background: var(--sidebar-active-bg);
+    color: #fff;
+}
+
+/* Submenu styling (WP-style nested menu) */
+.nav-item.submenu {
+    padding-left: 32px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+}
+.nav-item.submenu:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+}
+.nav-item.submenu.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Make submenu text slightly smaller and spaced */
+.nav-item.submenu {
+    letter-spacing: 0.3px;
+}
 
 /* WP‑admin style menu containers */
 #adminmenu, #adminmenuback, #adminmenuwrap {
@@ -245,6 +280,70 @@ body { margin: 0; font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSyst
     font-size: 13px;
     color: rgba(0,0,0,0.7);
     font-weight: 600;
+}
+
+.blocks-editor {
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    background: #fafafa;
+    padding: 10px;
+}
+
+.blocks-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.block-type-select {
+    flex: 1;
+}
+
+.block-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.block-item {
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+}
+
+.block-item[data-type="heading"] {
+    border-color: rgba(0, 120, 212, 0.25);
+}
+
+.block-item[data-type="image"] {
+    border-color: rgba(0, 160, 100, 0.25);
+}
+
+.block-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.block-item-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: rgba(0,0,0,0.7);
+}
+
+.block-item-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.block-item textarea,
+.block-item input[type="text"] {
+    width: 100%;
+    margin-top: 6px;
 }
 
 .modal-fields input,

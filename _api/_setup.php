@@ -49,6 +49,12 @@ switch ($resource) {
         handle_api_users($id);
         break;
 
+
+    case 'taxonomies':
+        require_once __DIR__ . '/taxonomies.php';
+        handle_api_taxonomies($id);
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Resource not found']);

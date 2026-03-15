@@ -148,8 +148,15 @@
      * (nonce-helpers, authenticatie, etc.) en zorgen voor veilige cookie-flags.
      */
     if (PHP_SAPI !== 'cli') {
-        $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        // Detect HTTPS in common hosting / reverse proxy setups.
+        // Allows `FORCE_HTTPS=1` for local dev or when HTTPS is terminated upstream.
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+            || cfg_env_bool('FORCE_HTTPS', false);
 
+        // Harden session cookie handling.
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_strict_mode', '1');
         ini_set('session.cookie_httponly', '1');
         ini_set('session.cookie_secure', $isHttps ? '1' : '0');
 

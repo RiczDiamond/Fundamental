@@ -35,7 +35,7 @@
     }
 
 ?>
-<?php $globalNonce = mol_get_nonce('global_csrf'); ?>
+<?php $globalNonce = mol_csrf_token(); ?>
 
 <!DOCTYPE html>
 <html lang="nl">
@@ -84,8 +84,6 @@
                 </div>
 
                 <form method="POST" action="/login" id="loginForm">
-                    <input type="hidden" name="_nonce_action" value="global_csrf">
-                    <input type="hidden" name="_nonce" value="<?php echo esc_attr($globalNonce); ?>">
 
                     <div class="input-group">
                         <label for="username">Gebruikersnaam</label>

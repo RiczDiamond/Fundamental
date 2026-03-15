@@ -1415,4 +1415,500 @@ $(function () {
 
         loadUsers();
     }
+
+    // ---------- Posts ----------
+    if ($('#posts-tbody').length) {
+        const $postsAlert = $('#posts-alert');
+        const $postsTbody = $('#posts-tbody');
+        const $postsAdd = $('#posts-add');
+        const postType = window.MOL_CURRENT_POST_TYPE || '';
+        const postTypeConfig = (window.MOL_POST_TYPES || {})[postType] || {};
+        const postTypeSupports = Array.isArray(postTypeConfig.supports) ? postTypeConfig.supports : ['title', 'content'];
+        const postTypeTaxonomies = Array.isArray(postTypeConfig.taxonomies) ? postTypeConfig.taxonomies : [];
+
+        const $postsModal = $('#posts-modal');
+        const $postsModalTitle = $('#posts-modal-title');
+        const $postsModalAlert = $('#posts-modal-alert');
+        const $postsModalTitleInput = $('#posts-modal-title-input');
+        const $postsModalBlockList = $('#posts-modal-block-list');
+        const $postsModalBlockType = $('#posts-modal-block-type');
+        const $postsModalAddBlock = $('#posts-modal-add-block');
+        const $postsModalType = $('#posts-modal-type');
+        const $postsModalStatus = $('#posts-modal-status');
+        const $postsModalDate = $('#posts-modal-date');
+        const $postsModalAuthor = $('#posts-modal-author');
+        const $postsModalExcerpt = $('#posts-modal-excerpt');
+        const $postsModalMeta = $('#posts-modal-meta');
+        const $postsModalTaxonomies = $('#posts-modal-taxonomies');
+        const $postsModalRowDate = $('#posts-modal-row-date');
+        const $postsModalRowAuthor = $('#posts-modal-row-author');
+        const $postsModalRowExcerpt = $('#posts-modal-row-excerpt');
+        const $postsModalRowMeta = $('#posts-modal-row-meta');
+        const $postsModalRowTaxes = $('#posts-modal-row-taxes');
+        const $postsModalCancel = $('#posts-modal-cancel');
+        const $postsModalSave = $('#posts-modal-save');
+
+        const buildPostsTableHeader = () => {
+            const $thead = $('#posts-thead');
+            const cols = [];
+            cols.push({ key: 'id', label: 'ID' });
+            cols.push({ key: 'title', label: 'Titel' });
+            if (postTypeSupports.includes('status')) {
+                cols.push({ key: 'status', label: 'Status' });
+            }
+            if (postTypeSupports.includes('date')) {
+                cols.push({ key: 'date', label: 'Datum' });
+            }
+            if (postTypeSupports.includes('author')) {
+                cols.push({ key: 'author', label: 'Auteur' });
+            }
+            if (postTypeSupports.includes('excerpt')) {
+                cols.push({ key: 'excerpt', label: 'Excerpt' });
+            }
+            if (postTypeSupports.includes('custom-fields')) {
+                cols.push({ key: 'meta', label: 'Meta' });
+            }
+            cols.push({ key: 'actions', label: 'Acties' });
+
+            const html = '<tr>' + cols.map((c) => '<th>' + c.label + '</th>').join('') + '</tr>';
+            $thead.html(html);
+        };
+
+        const renderPostRow = (post) => {
+            const cells = [];
+            cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + (post.ID || '') + '</td>');
+            cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + (post.post_title || '') + '</td>');
+
+            if (postTypeSupports.includes('status')) {
+                cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + renderStatus(post.post_status) + '</td>');
+            }
+
+            if (postTypeSupports.includes('date')) {
+                cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + (post.post_date || '') + '</td>');
+            }
+
+            if (postTypeSupports.includes('author')) {
+                cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + (post.post_author || '') + '</td>');
+            }
+
+            if (postTypeSupports.includes('excerpt')) {
+                const excerpt = (post.post_excerpt || '').substring(0, 80);
+                cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + excerpt + '</td>');
+            }
+
+            if (postTypeSupports.includes('custom-fields')) {
+                const metaCount = post.meta ? Object.keys(post.meta).length : 0;
+                cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + metaCount + '</td>');
+            }
+
+            cells.push('<td style="padding:12px; border-bottom:1px solid #eee;">' + renderActions(post) + '</td>');
+
+            return '<tr data-id="' + post.ID + '" data-title="' + (post.post_title || '').replace(/"/g, '&quot;') + '" data-content="' + (post.post_content || '').replace(/"/g, '&quot;') + '" data-status="' + (post.post_status || '') + '" data-type="' + (post.post_type || '') + '">' + cells.join('') + '</tr>';
+        };
+
+        let activePostId = null;
+        let activeMode = 'create';
+
+        const postAlert = (message, type = 'error') => showAlert($postsAlert, message, type);
+        const modalAlert = (message, type = 'error') => {
+            if (!message) {
+                $postsModalAlert.hide();
+                return;
+            }
+            showAlert($postsModalAlert, message, type, 7000);
+        };
+
+        const renderStatus = (status) => {
+            if (status === 'published') {
+                return '<span style="color:#1a7; font-weight:600;">Gepubliceerd</span>';
+            }
+            return '<span style="color:#888; font-weight:600;">Concept</span>';
+        };
+
+        const renderActions = (post) => {
+            return '<span class="row-actions">' +
+                '<a href="#" class="row-action" data-action="edit" data-id="' + post.ID + '">Bewerken</a> | ' +
+                '<a href="#" class="row-action" data-action="delete" data-id="' + post.ID + '">Verwijderen</a>' +
+                '</span>';
+        };
+
+        let postBlocks = [];
+
+        const escapeHtml = (str) => {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const parseBlocks = (content) => {
+            if (!content) {
+                return [{ type: 'paragraph', text: '' }];
+            }
+            try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch (e) {
+                // Ignore parse errors; fall back to plain text.
+            }
+            return [{ type: 'paragraph', text: content }];
+        };
+
+        const renderBlocks = () => {
+            $postsModalBlockList.empty();
+            postBlocks.forEach((block, idx) => {
+                const $item = $('<div class="block-item"></div>').attr('data-type', block.type || 'paragraph').attr('data-index', idx);
+                const typeLabel = block.type === 'heading' ? 'Kop' : block.type === 'image' ? 'Afbeelding' : 'Paragraaf';
+                const $header = $('<div class="block-item-header"></div>');
+                $header.append(`<div class="block-item-title">${typeLabel}</div>`);
+                const $actions = $('<div class="block-item-actions"></div>');
+                $actions.append('<button type="button" class="btn-secondary btn-small block-move" data-dir="up">↑</button>');
+                $actions.append('<button type="button" class="btn-secondary btn-small block-move" data-dir="down">↓</button>');
+                $actions.append('<button type="button" class="btn-secondary btn-small block-delete">✕</button>');
+                $header.append($actions);
+                $item.append($header);
+
+                if (block.type === 'image') {
+                    $item.append(`<input type="text" class="block-input block-input-url" placeholder="Afbeelding URL" value="${escapeHtml(block.url || '')}" />`);
+                    $item.append(`<input type="text" class="block-input block-input-alt" placeholder="Alt tekst" value="${escapeHtml(block.alt || '')}" />`);
+                } else {
+                    $item.append(`<textarea class="block-input" rows="4" placeholder="Tekst...">${escapeHtml(block.text || '')}</textarea>`);
+                }
+
+                $postsModalBlockList.append($item);
+            });
+        };
+
+        const moveBlock = (from, to) => {
+            if (from < 0 || to < 0 || from >= postBlocks.length || to >= postBlocks.length) return;
+            const [moved] = postBlocks.splice(from, 1);
+            postBlocks.splice(to, 0, moved);
+            renderBlocks();
+        };
+
+        const deleteBlock = (index) => {
+            if (index < 0 || index >= postBlocks.length) return;
+            postBlocks.splice(index, 1);
+            renderBlocks();
+        };
+
+        const addBlock = (type) => {
+            const block = { type };
+            if (type === 'image') {
+                block.url = '';
+                block.alt = '';
+            } else {
+                block.text = '';
+            }
+            postBlocks.push(block);
+            renderBlocks();
+        };
+
+        const openModal = (mode, post = {}) => {
+            activeMode = mode;
+            activePostId = post.ID || null;
+
+            $postsModalTitle.text(mode === 'create' ? 'Nieuw bericht' : 'Bericht bewerken');
+            modalAlert('', 'success');
+
+            $postsModalTitleInput.val(post.post_title || '');
+            postBlocks = parseBlocks(post.post_content || '');
+            renderBlocks();
+            $postsModalStatus.val(post.post_status || 'draft');
+
+            // Show/hide fields based on post type supports
+            const hasDate = postTypeSupports.includes('date');
+            const hasAuthor = postTypeSupports.includes('author');
+            const hasExcerpt = postTypeSupports.includes('excerpt');
+            const hasMeta = postTypeSupports.includes('custom-fields');
+
+            $postsModalRowDate.toggle(hasDate);
+            $postsModalRowAuthor.toggle(hasAuthor);
+            $postsModalRowExcerpt.toggle(hasExcerpt);
+            $postsModalRowMeta.toggle(hasMeta);
+
+            if (hasDate) {
+                const date = post.post_date ? new Date(post.post_date) : new Date();
+                $postsModalDate.val(date.toISOString().slice(0, 16));
+            }
+            if (hasAuthor) {
+                $postsModalAuthor.val(post.post_author || '');
+            }
+            if (hasExcerpt) {
+                $postsModalExcerpt.val(post.post_excerpt || '');
+            }
+            if (hasMeta) {
+                const meta = post.meta || {};
+                const lines = Object.entries(meta).map(([k,v]) => `${k}=${v}`);
+                $postsModalMeta.val(lines.join('\n'));
+            }
+
+            // Taxonomies
+            const hasTax = Array.isArray(postTypeTaxonomies) && postTypeTaxonomies.length > 0;
+            $postsModalRowTaxes.toggle(hasTax);
+            $postsModalTaxonomies.empty();
+
+            if (hasTax) {
+                const selectedTerms = (post.terms || []).reduce((acc, term) => {
+                    if (!acc[term.taxonomy]) acc[term.taxonomy] = [];
+                    acc[term.taxonomy].push(term.term_id);
+                    return acc;
+                }, {});
+
+                postTypeTaxonomies.forEach((taxonomy) => {
+                    const wrapper = $('<div style="margin-bottom:12px;"></div>');
+                    wrapper.append(`<div style="font-weight:600; margin-bottom:4px;">${taxonomy}</div>`);
+                    const list = $('<div style="display:flex; flex-wrap:wrap; gap:8px;"></div>');
+
+                    wrapper.append(list);
+                    $postsModalTaxonomies.append(wrapper);
+
+                    ajaxWithCsrf({ url: '/api/taxonomies?taxonomy=' + encodeURIComponent(taxonomy), method: 'GET' })
+                        .done((terms) => {
+                            if (!Array.isArray(terms)) return;
+                            terms.forEach((term) => {
+                                const termId = term.term_id;
+                                const checked = (selectedTerms[taxonomy] || []).includes(termId);
+                                const $label = $(
+                                    `<label style="display:inline-flex; align-items:center; gap:4px;">
+                                        <input type="checkbox" value="${termId}" data-taxonomy="${taxonomy}" ${checked ? 'checked' : ''} />
+                                        ${term.name}
+                                    </label>`
+                                );
+                                list.append($label);
+                            });
+                        });
+                });
+            }
+
+            if (post.post_type) {
+                $postsModalType.val(post.post_type);
+            } else if (postType) {
+                $postsModalType.val(postType);
+            }
+
+            // Prevent changing post type when viewing a specific type.
+            if (postType) {
+                $postsModalType.prop('disabled', true);
+            } else {
+                $postsModalType.prop('disabled', false);
+            }
+
+            $postsModal.css('display', 'flex');
+        };
+
+        const closeModal = () => {
+            $postsModal.css('display', 'none');
+            modalAlert('', 'success');
+        };
+
+        // Block editor interactions
+        $postsModalAddBlock.on('click', (e) => {
+            e.preventDefault();
+            addBlock($postsModalBlockType.val());
+        });
+
+        $postsModalBlockList.on('click', '.block-move', function () {
+            const $btn = $(this);
+            const dir = $btn.data('dir');
+            const $item = $btn.closest('.block-item');
+            const index = parseInt($item.attr('data-index'), 10);
+            if (Number.isNaN(index)) return;
+            if (dir === 'up') {
+                moveBlock(index, index - 1);
+            } else {
+                moveBlock(index, index + 1);
+            }
+        });
+
+        $postsModalBlockList.on('click', '.block-delete', function () {
+            const $item = $(this).closest('.block-item');
+            const index = parseInt($item.attr('data-index'), 10);
+            if (Number.isNaN(index)) return;
+            deleteBlock(index);
+        });
+
+        $postsModalBlockList.on('input', '.block-input', function () {
+            const $input = $(this);
+            const $item = $input.closest('.block-item');
+            const index = parseInt($item.attr('data-index'), 10);
+            if (Number.isNaN(index)) return;
+            const block = postBlocks[index];
+            if (!block) return;
+
+            if ($input.hasClass('block-input-url')) {
+                block.url = $input.val();
+            } else if ($input.hasClass('block-input-alt')) {
+                block.alt = $input.val();
+            } else {
+                block.text = $input.val();
+            }
+        });
+
+        const loadPosts = () => {
+            const params = new URLSearchParams();
+            if (postType) {
+                params.set('post_type', postType);
+            }
+
+            ajaxWithCsrf({ url: '/api/posts?' + params.toString(), method: 'GET' })
+                .done((res) => {
+                    const posts = Array.isArray(res) ? res : [];
+                    if (!posts.length) {
+                        const colspan = 2 + (postTypeSupports.includes('status') ? 1 : 0) + (postTypeSupports.includes('date') ? 1 : 0) + (postTypeSupports.includes('author') ? 1 : 0) + (postTypeSupports.includes('excerpt') ? 1 : 0) + (postTypeSupports.includes('custom-fields') ? 1 : 0) + 1;
+                        $postsTbody.html('<tr><td colspan="' + colspan + '" style="padding:16px; text-align:center; color:#888;">Geen berichten gevonden.</td></tr>');
+                        return;
+                    }
+
+                    buildPostsTableHeader();
+
+                    const rows = posts.map(renderPostRow);
+                    $postsTbody.html(rows.join(''));
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon berichten niet laden.';
+                    postAlert(msg);
+                    $postsTbody.html('<tr><td colspan="6" style="padding:16px; text-align:center; color:#888;">Kon niet laden.</td></tr>');
+                });
+        };
+
+        const savePost = () => {
+            const normalizedBlocks = postBlocks
+                .map((b) => ({ ...b }))
+                .filter((b) => {
+                    if (b.type === 'image') {
+                        return (b.url || '').trim() !== '';
+                    }
+                    return (b.text || '').trim() !== '';
+                });
+
+            if (!normalizedBlocks.length) {
+                normalizedBlocks.push({ type: 'paragraph', text: '' });
+            }
+
+            const data = {
+                post_title: $postsModalTitleInput.val().trim(),
+                post_blocks: normalizedBlocks,
+                post_status: $postsModalStatus.val(),
+                post_type: $postsModalType.val() || postType,
+            };
+
+            if (postTypeSupports.includes('date')) {
+                const date = $postsModalDate.val();
+                if (date) {
+                    data.post_date = date;
+                }
+            }
+            if (postTypeSupports.includes('author')) {
+                const author = $postsModalAuthor.val().trim();
+                if (author) {
+                    data.post_author = author;
+                }
+            }
+            if (postTypeSupports.includes('excerpt')) {
+                const excerpt = $postsModalExcerpt.val().trim();
+                if (excerpt) {
+                    data.post_excerpt = excerpt;
+                }
+            }
+            if (postTypeSupports.includes('custom-fields')) {
+                const raw = $postsModalMeta.val().trim();
+                if (raw) {
+                    const meta = {};
+                    raw.split(/\r?\n/).forEach((line) => {
+                        const [key, ...rest] = line.split('=');
+                        if (!key) return;
+                        meta[key.trim()] = rest.join('=').trim();
+                    });
+                    data.meta = meta;
+                }
+            }
+
+            if (Array.isArray(postTypeTaxonomies) && postTypeTaxonomies.length) {
+                const terms = {};
+                $postsModalTaxonomies.find('input[type="checkbox"]:checked').each(function () {
+                    const $chk = $(this);
+                    const taxonomy = $chk.data('taxonomy');
+                    const tid = parseInt($chk.val(), 10);
+                    if (!taxonomy) return;
+                    if (!terms[taxonomy]) terms[taxonomy] = [];
+                    terms[taxonomy].push(tid);
+                });
+                if (Object.keys(terms).length) {
+                    data.terms = terms;
+                }
+            }
+
+            if (!data.post_title) {
+                modalAlert('Titel is verplicht.');
+                return;
+            }
+
+            const method = activeMode === 'create' ? 'POST' : 'PATCH';
+            const url = activeMode === 'create' ? '/api/posts' : '/api/posts/' + activePostId;
+
+            ajaxWithCsrf({ url, method, data })
+                .done(() => {
+                    closeModal();
+                    postAlert(activeMode === 'create' ? 'Bericht aangemaakt.' : 'Bericht bijgewerkt.', 'success');
+                    loadPosts();
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Opslaan mislukt.';
+                    modalAlert(msg);
+                });
+        };
+
+        $postsAdd.on('click', () => openModal('create'));
+        $postsModalCancel.on('click', closeModal);
+        $postsModalSave.on('click', savePost);
+
+
+        $postsTbody.on('click', '[data-action]', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const action = $btn.data('action');
+            const postId = $btn.data('id');
+
+            if (!postId) {
+                return;
+            }
+
+            if (action === 'edit') {
+                ajaxWithCsrf({ url: '/api/posts/' + postId, method: 'GET' })
+                    .done((post) => {
+                        openModal('edit', post);
+                    })
+                    .fail((xhr) => {
+                        const msg = xhr.responseJSON?.error || 'Kon bericht niet laden.';
+                        postAlert(msg);
+                    });
+                return;
+            }
+
+            if (action === 'delete') {
+                if (!confirm('Weet je zeker dat je dit bericht wilt verwijderen?')) {
+                    return;
+                }
+
+                ajaxWithCsrf({ url: '/api/posts/' + postId, method: 'DELETE' })
+                    .done(() => {
+                        postAlert('Bericht verwijderd.', 'success');
+                        loadPosts();
+                    })
+                    .fail((xhr) => {
+                        const msg = xhr.responseJSON?.error || 'Verwijderen mislukt.';
+                        postAlert(msg);
+                    });
+                return;
+            }
+        });
+
+        loadPosts();
+    }
+
 });

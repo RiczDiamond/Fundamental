@@ -9,33 +9,61 @@
     $initials = strtoupper(substr($displayName, 0, 1));
 
     $navItems = [
-        'home' => 'Dashboard',
-        'account' => 'Account',
-        'posts' => 'Posts',
-        'users' => 'Users',
+        'home' => ['label' => 'Dashboard', 'href' => '/dashboard'],
+        'account' => ['label' => 'Account', 'href' => '/dashboard/account'],
+        'posts' => ['label' => 'Posts', 'href' => '/dashboard/posts'],
     ];
 
+    // Add each post type as its own menu item (separate from "Posts").
+    $postTypes = mol_get_post_types();
+    foreach ($postTypes as $type => $info) {
+        $navItems['posts-' . $type] = [
+            'label' => $info['labels']['plural'] ?? $type,
+            'href' => '/dashboard/posts/' . $type,
+            'icon' => $info['menu_icon'] ?? '',
+        ];
+    }
+
+
+
+    $navItems['users'] = ['label' => 'Users', 'href' => '/dashboard/users'];
+
     if (mol_current_user_can('view_audit_log')) {
-        $navItems['audit'] = 'Audit log';
+        $navItems['audit'] = ['label' => 'Audit log', 'href' => '/dashboard/audit'];
     }
 
     if (mol_current_user_can('edit_roles')) {
-        $navItems['roles'] = 'Rollen';
+        $navItems['roles'] = ['label' => 'Rollen', 'href' => '/dashboard/roles'];
     }
 
-    function dashboardNavItem(string $key, string $label, string $current): string
+    function dashboardNavItem(string $href, string $label, bool $active, string $icon = ''): string
     {
-        $active = $key === $current ? ' active' : '';
-        $icon = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-        return "<a class=\"nav-item{$active}\" href=\"/dashboard/{$key}\">{$icon}{$label}</a>";
+        $activeClass = $active ? ' active' : '';
+        $iconHtml = $icon ? '<span class="nav-icon">' . $icon . '</span>' : '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+        return "<a class=\"nav-item{$activeClass}\" href=\"{$href}\">{$iconHtml}<span class=\"nav-label\">{$label}</span></a>";
     }
+
+    $currentPostType = trim((string) ($postType ?? ''));
+
+    // Determine current page title based on the section/post type.
+    $currentTitle = 'Dashboard';
+    if ($section === 'posts') {
+        if ($currentPostType !== '' && isset($postTypes[$currentPostType])) {
+            $currentTitle = $postTypes[$currentPostType]['labels']['plural'] ?? $currentPostType;
+        } else {
+            $currentTitle = $navItems['posts']['label'] ?? 'Posts';
+        }
+    } elseif (isset($navItems[$section]['label'])) {
+        $currentTitle = $navItems[$section]['label'];
+    }
+
 ?>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — <?php echo esc_attr($navItems[$section] ?? 'Dashboard'); ?></title>
+    <title>Dashboard — <?php echo esc_attr($currentTitle); ?></title>
     <meta name="csrf-token" content="<?php echo esc_attr(mol_get_nonce('global_csrf')); ?>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="/resources/style/admin.css" rel="stylesheet">
@@ -52,8 +80,22 @@
 
         <nav class="nav">
             <?php
-                foreach ($navItems as $key => $label) {
-                    echo dashboardNavItem($key, $label, $section);
+                foreach ($navItems as $key => $item) {
+                    $href = $item['href'] ?? '/dashboard/' . $key;
+                    $label = $item['label'] ?? $key;
+
+                    $active = false;
+                    if ($key === 'posts') {
+                        $active = ($section === 'posts' && $currentPostType === '');
+                    } elseif (str_starts_with($key, 'posts-')) {
+                        $type = substr($key, 6);
+                        $active = ($section === 'posts' && $currentPostType === $type);
+                    } else {
+                        $active = $section === $key;
+                    }
+
+                    $icon = $item['icon'] ?? '';
+                    echo dashboardNavItem($href, $label, $active, $icon);
                 }
             ?>
         </nav>
@@ -67,7 +109,7 @@
             }
         ?>
         <header class="topbar">
-            <h1><?php echo esc_attr($navItems[$section] ?? 'Dashboard'); ?></h1>
+            <h1><?php echo esc_attr($currentTitle); ?></h1>
             <div class="user">
                 <div class="avatar">
                     <?php if ($avatarUrl): ?>

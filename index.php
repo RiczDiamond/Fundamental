@@ -27,8 +27,4 @@
 
         require_once './_website/_setup.php';
 
-        $password = 'test';
-        echo password_hash($password . AUTHENTICATION['PEPPER']['VALUE'], AUTHENTICATION['ALGORITHM'], ['cost' => AUTHENTICATION['COST']]);
-        // echo $hash; // plak dit in je SQL insert
-
     }
