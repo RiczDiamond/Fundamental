@@ -2,8 +2,9 @@
 
     declare(strict_types=1);
 
-    require_once __DIR__ . '/url.php';
+    // Load configuration (including .env) before URL/host detection.
     require_once __DIR__ . '/config.php';
+    require_once __DIR__ . '/url.php';
 
     require_once __DIR__ . '/database.php';
     require_once __DIR__ . '/functions.php';

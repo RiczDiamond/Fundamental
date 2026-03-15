@@ -9,6 +9,43 @@
         session_start();
     }
 
+    // Ensure Session and Cookie helpers are available.
+    require_once __DIR__ . '/class_session.php';
+    require_once __DIR__ . '/class_cookie.php';
+
+    function mol_session(): Session
+    {
+        static $session = null;
+        if ($session === null) {
+            $session = new Session($GLOBALS['link'] ?? null);
+        }
+        return $session;
+    }
+
+    function mol_cookie(): Cookie
+    {
+        static $cookie = null;
+        if ($cookie === null) {
+            $cookie = new Cookie($GLOBALS['link'] ?? null);
+        }
+        return $cookie;
+    }
+
+    function mol_cookie_persist(int $userId, string $name, string $value, int $expires = 0): bool
+    {
+        return mol_cookie()->persist($userId, $name, $value, $expires);
+    }
+
+    function mol_cookie_retrieve_persisted(int $userId, string $name, $default = null)
+    {
+        return mol_cookie()->retrievePersisted($userId, $name, $default);
+    }
+
+    function mol_cookie_clear_persisted(int $userId, string $name, array $options = []): bool
+    {
+        return mol_cookie()->clearPersisted($userId, $name, $options);
+    }
+
     /**
      * Escaping helpers
      */
@@ -42,16 +79,22 @@
     function mol_nonce_field(string $action): void
     {
         $nonce = bin2hex(random_bytes(16));
-        $_SESSION['nonces'][$action] = $nonce;
+        $nonces = (array) mol_session()->get('nonces', []);
+        $nonces[$action] = $nonce;
+        mol_session()->set('nonces', $nonces);
+
         echo '<input type="hidden" name="_nonce" value="' . esc_attr($nonce) . '">';
         echo '<input type="hidden" name="_nonce_action" value="' . esc_attr($action) . '">';
     }
 
-    function mol_require_valid_nonce(string $action): bool
+    function mol_require_valid_nonce(string $action, ?array $jsonBody = null): bool
     {
         // Allow nonce fields to come via JSON body (for AJAX requests) or via headers.
-        $rawBody = file_get_contents('php://input');
-        $jsonBody = is_string($rawBody) ? json_decode($rawBody, true) : null;
+        // If the request body has already been read by the caller, they can pass it in.
+        if ($jsonBody === null) {
+            $rawBody = file_get_contents('php://input');
+            $jsonBody = is_string($rawBody) ? json_decode($rawBody, true) : null;
+        }
 
         $postedAction = $_POST['_nonce_action']
             ?? ($jsonBody['_nonce_action'] ?? null)
@@ -67,14 +110,16 @@
             return false;
         }
 
-        $stored = $_SESSION['nonces'][$action] ?? null;
+        $nonces = (array) mol_session()->get('nonces', []);
+        $stored = $nonces[$action] ?? null;
         if (!is_string($stored) || $stored === '') {
             return false;
         }
 
         $valid = hash_equals($stored, (string) $postedNonce);
         if ($action !== 'global_csrf') {
-            unset($_SESSION['nonces'][$action]);
+            unset($nonces[$action]);
+            mol_session()->set('nonces', $nonces);
         }
         return $valid;
     }
@@ -82,7 +127,9 @@
     function mol_get_nonce(string $action): string
     {
         $nonce = bin2hex(random_bytes(16));
-        $_SESSION['nonces'][$action] = $nonce;
+        $nonces = (array) mol_session()->get('nonces', []);
+        $nonces[$action] = $nonce;
+        mol_session()->set('nonces', $nonces);
         return $nonce;
     }
 
@@ -113,6 +160,83 @@
     }
 
     /**
+     * Flash messaging helpers.
+     */
+    function flash(string $key, $value): void
+    {
+        mol_session()->flash($key, $value);
+    }
+
+    function flashGet(string $key, $default = null)
+    {
+        return mol_session()->flashGet($key, $default);
+    }
+
+    /**
+     * Return a Gravatar URL for the given email.
+     */
+    function mol_gravatar_url(string $email, int $size = 80, string $default = 'identicon'): string
+    {
+        $email = trim(strtolower($email));
+        $hash = md5($email);
+        $size = max(1, min(512, $size));
+        return "https://www.gravatar.com/avatar/{$hash}?s={$size}&d=" . urlencode($default);
+    }
+
+    /**
+     * Get the default role/capability map.
+     *
+     * @return array<string, string[]>
+     */
+    function mol_default_role_capabilities(): array
+    {
+        return [
+            'admin' => ['view_users', 'manage_users', 'view_audit_log', 'edit_roles', 'edit_permissions'],
+            'editor' => ['view_users'],
+            'user' => [],
+        ];
+    }
+
+    /**
+     * Read role/capability configuration from a global setting stored in usermeta.
+     * This allows admins to adjust roles without modifying code.
+     *
+     * @return array<string, string[]>
+     */
+    function mol_get_roles_config(): array
+    {
+        try {
+            $account = new Account($GLOBALS['link']);
+            $raw = $account->get_user_meta(0, 'roles_config');
+            if (!$raw) {
+                return [];
+            }
+            $data = json_decode((string) $raw, true);
+            if (!is_array($data)) {
+                return [];
+            }
+            return $data;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Store role/capability configuration for the application.
+     *
+     * @param array<string, string[]> $config
+     */
+    function mol_set_roles_config(array $config): bool
+    {
+        try {
+            $account = new Account($GLOBALS['link']);
+            return $account->set_user_meta(0, 'roles_config', json_encode($config, JSON_THROW_ON_ERROR));
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Role-based capabilities map.
      * Add/adjust capabilities as needed for your RBAC model.
      *
@@ -120,17 +244,45 @@
      */
     function mol_role_capabilities(): array
     {
-        return [
-            'admin' => ['view_users', 'manage_users', 'view_audit_log'],
-            'editor' => ['view_users'],
-            'user' => [],
-        ];
+        $config = mol_get_roles_config();
+        if (!empty($config)) {
+            return $config;
+        }
+
+        return mol_default_role_capabilities();
     }
 
     function mol_role_has_capability(string $role, string $capability): bool
     {
         $caps = mol_role_capabilities();
         return in_array($capability, $caps[$role] ?? [], true);
+    }
+
+    function mol_current_user_can(string $capability): bool
+    {
+        $userId = mol_session()->get('user_id');
+        if (empty($userId) || !is_int($userId)) {
+            return false;
+        }
+
+        $account = new Account($GLOBALS['link']);
+        $user = $account->get_user_by_id((int) $userId);
+        if (!$user) {
+            return false;
+        }
+
+        return mol_role_has_capability((string) ($user['user_role'] ?? ''), $capability);
+    }
+
+    function mol_audit(int $actorId, ?int $targetId, string $action, array $meta = []): void
+    {
+        $metaJson = json_encode($meta, JSON_THROW_ON_ERROR);
+        insert('audit_log', [
+            'actor_id' => $actorId,
+            'target_id' => $targetId,
+            'action' => $action,
+            'meta' => $metaJson,
+        ]);
     }
 
     /**
@@ -404,12 +556,9 @@
      */
     function mol_rate_limit(string $key, int $limit, int $windowSec): array
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
-
         $now = time();
-        $entry = $_SESSION['rate_limit'][$key] ?? ['count' => 0, 'start' => $now];
+        $rateLimit = (array) mol_session()->get('rate_limit', []);
+        $entry = $rateLimit[$key] ?? ['count' => 0, 'start' => $now];
 
         if (!isset($entry['count'], $entry['start']) || !is_int($entry['count']) || !is_int($entry['start'])) {
             $entry = ['count' => 0, 'start' => $now];
@@ -420,7 +569,8 @@
         }
 
         $entry['count'] += 1;
-        $_SESSION['rate_limit'][$key] = $entry;
+        $rateLimit[$key] = $entry;
+        mol_session()->set('rate_limit', $rateLimit);
 
         $remaining = max(0, $limit - $entry['count']);
         $reset = $entry['start'] + $windowSec;
@@ -433,11 +583,134 @@
     }
 
     /**
+     * Block an IP address for a period of time.
+     *
+     * @param string      $ip
+     * @param string      $reason
+     * @param int|null    $expiresAt Timestamp when block expires (null = permanent)
+     */
+    /**
+     * Build the usermeta key used for storing IP blocks.
+     */
+    function mol_ip_block_meta_key(string $ip): string
+    {
+        return 'ip_blocklist_' . md5($ip);
+    }
+
+    function mol_block_ip(string $ip, string $reason = '', ?int $expiresAt = null): bool
+    {
+        if (empty($ip)) {
+            return false;
+        }
+
+        $key = mol_ip_block_meta_key($ip);
+        $payload = json_encode([
+            'ip' => $ip,
+            'reason' => $reason,
+            'expires_at' => $expiresAt ? date('c', $expiresAt) : null,
+        ], JSON_THROW_ON_ERROR);
+
+        try {
+            $account = new Account($GLOBALS['link']);
+            return $account->set_user_meta(0, $key, $payload);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    function mol_unblock_ip(string $ip): bool
+    {
+        if (empty($ip)) {
+            return false;
+        }
+
+        $key = mol_ip_block_meta_key($ip);
+        try {
+            $account = new Account($GLOBALS['link']);
+            return $account->delete_user_meta(0, $key);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    function mol_is_ip_blocked(string $ip): bool
+    {
+        if (empty($ip)) {
+            return false;
+        }
+
+        $key = mol_ip_block_meta_key($ip);
+        try {
+            $account = new Account($GLOBALS['link']);
+            $raw = $account->get_user_meta(0, $key);
+        } catch (Throwable $e) {
+            $raw = null;
+        }
+
+        if ($raw) {
+            $data = json_decode((string) $raw, true);
+            if (is_array($data)) {
+                $expires = $data['expires_at'] ?? null;
+                if (!$expires) {
+                    return true;
+                }
+
+                if (strtotime($expires) < time()) {
+                    // Cleanup expired block.
+                    mol_unblock_ip($ip);
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        // Fallback to legacy table-based blocklist (if it exists).
+        try {
+            $row = get_row(
+                'SELECT expires_at FROM ' . table('ip_blocklist') . ' WHERE ip = :ip LIMIT 1',
+                ['ip' => $ip]
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+
+        if (!$row) {
+            return false;
+        }
+
+        $expires = $row['expires_at'] ?? null;
+        if (!$expires) {
+            return true;
+        }
+
+        if (strtotime($expires) < time()) {
+            mol_unblock_ip($ip);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Prune audit log entries older than the given number of days.
+     */
+    function mol_prune_audit_log(int $days = 90): int
+    {
+        $cutoff = date('Y-m-d H:i:s', time() - ($days * 86400));
+        return db_query(
+            'DELETE FROM ' . table('audit_log') . ' WHERE created_at < :cutoff',
+            ['cutoff' => $cutoff]
+        );
+    }
+
+    /**
      * Authentication helpers (legacy `mol_` function names used in dashboard).
      */
     function is_user_logged_in(): bool
     {
-        return !empty($_SESSION['user_id']) && is_int($_SESSION['user_id']) && $_SESSION['user_id'] > 0;
+        $userId = mol_session()->get('user_id');
+        return !empty($userId) && is_int($userId) && $userId > 0;
     }
 
     function mol_signon(array $credentials)
@@ -456,6 +729,17 @@
 
     function mol_logout(): void
     {
+        global $link;
+
+        // Ensure the current session is properly invalidated server-side (including
+        // removing it from the user's active sessions list).
+        if (isset($link)) {
+            $auth = new Auth($link);
+            $auth->logout();
+            return;
+        }
+
+        // Fallback: destroy PHP session only.
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }

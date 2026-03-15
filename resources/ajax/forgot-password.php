@@ -39,7 +39,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 );
 
 // CSRF check (uses the same nonce as the dashboard form).
-if (!mol_require_valid_nonce('global_csrf')) {
+if (!mol_require_valid_nonce('global_csrf', $input)) {
     // Debug helper: write some CSRF state to a log file (short tokens) for troubleshooting.
     $postedAction = $_POST['_nonce_action'] ?? $_SERVER['HTTP_X_CSRF_ACTION'] ?? '';
     $postedNonce = $_POST['_nonce'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';

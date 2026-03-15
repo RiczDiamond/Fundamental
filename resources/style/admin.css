@@ -94,6 +94,14 @@ body { margin: 0; font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSyst
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-weight: 700;
     border-radius: 10px;
+    overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .content { flex: 1; overflow-y: auto; padding: 24px 30px; background: var(--bg); }

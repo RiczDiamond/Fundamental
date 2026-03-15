@@ -15,6 +15,14 @@
         'users' => 'Users',
     ];
 
+    if (mol_current_user_can('view_audit_log')) {
+        $navItems['audit'] = 'Audit log';
+    }
+
+    if (mol_current_user_can('edit_roles')) {
+        $navItems['roles'] = 'Rollen';
+    }
+
     function dashboardNavItem(string $key, string $label, string $current): string
     {
         $active = $key === $current ? ' active' : '';
@@ -52,9 +60,22 @@
     </aside>
 
     <div class="main">
+        <?php
+            $avatarUrl = '';
+            if (!empty($user['user_email'])) {
+                $avatarUrl = mol_gravatar_url($user['user_email'], 40);
+            }
+        ?>
         <header class="topbar">
             <h1><?php echo esc_attr($navItems[$section] ?? 'Dashboard'); ?></h1>
             <div class="user">
+                <div class="avatar">
+                    <?php if ($avatarUrl): ?>
+                        <img src="<?php echo esc_attr($avatarUrl); ?>" alt="Avatar">
+                    <?php else: ?>
+                        <?php echo esc_html($initials); ?>
+                    <?php endif; ?>
+                </div>
                 <span><?php echo esc_attr($displayName); ?></span>
                 <form method="POST" action="/dashboard/logout" style="margin:0;">
                     <button type="submit" class="btn-secondary" style="padding:8px 14px;">Uitloggen</button>

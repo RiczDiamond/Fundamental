@@ -42,9 +42,8 @@ if ($method === 'PUT' || $method === 'PATCH' || $method === 'POST') {
     }
 
     if ($action === 'ban' || $action === 'unban' || $action === 'soft_delete') {
-        // Only admin (user_status 0) can modify other users
-        $current = $auth->current_user();
-        if ((int) ($current['user_status'] ?? 0) !== 0) {
+        // Only users with manage_users capability can modify other users
+        if (!mol_current_user_can('manage_users')) {
             http_response_code(403);
             echo json_encode(['error' => 'Access denied']);
             exit;

@@ -57,13 +57,25 @@ if (is_user_logged_in()) {
 
                 <div id="forgot-reset" class="forgot-block" style="display:none;">
                     <form id="forgot-reset-form">
-                        <div class="input-group">
+                        <div class="input-group password">
                             <label for="forgot_new_password">Nieuw wachtwoord</label>
-                            <input id="forgot_new_password" name="new_password" type="password" placeholder="Nieuw wachtwoord" required>
+                            <div class="input-with-toggle">
+                                <input id="forgot_new_password" name="new_password" type="password" placeholder="Nieuw wachtwoord" required>
+                                <button type="button" class="password-toggle" aria-label="Toon/verberg wachtwoord">
+                                    <span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+                                    <span class="dashicons dashicons-hidden" aria-hidden="true" style="display:none;"></span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group password">
                             <label for="forgot_new_password_confirm">Bevestig nieuw wachtwoord</label>
-                            <input id="forgot_new_password_confirm" name="new_password_confirm" type="password" placeholder="Bevestig nieuw wachtwoord" required>
+                            <div class="input-with-toggle">
+                                <input id="forgot_new_password_confirm" name="new_password_confirm" type="password" placeholder="Bevestig nieuw wachtwoord" required>
+                                <button type="button" class="password-toggle" aria-label="Toon/verberg wachtwoord">
+                                    <span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+                                    <span class="dashicons dashicons-hidden" aria-hidden="true" style="display:none;"></span>
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" class="button" id="forgot-reset-submit">Wachtwoord wijzigen</button>
                     </form>

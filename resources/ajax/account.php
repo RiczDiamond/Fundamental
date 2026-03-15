@@ -39,16 +39,33 @@ if ($method === 'GET') {
 
     unset($user['user_pass']);
 
+    $twoFactorPending = $account->is_two_factor_pending((int) $user['id']);
+    $twoFactorSecret = '';
+    $twoFactorOtpAuth = '';
+
+    if ($twoFactorPending) {
+        $twoFactorSecret = $account->get_user_meta((int) $user['id'], 'two_factor_secret_pending');
+        if ($twoFactorSecret) {
+            $issuer = urlencode(parse_url(BASE_URL, PHP_URL_HOST) ?: 'Site');
+            $label = urlencode($user['user_email'] ?? $user['user_login'] ?? 'user');
+            $twoFactorOtpAuth = "otpauth://totp/{$issuer}:{$label}?secret={$twoFactorSecret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30";
+        }
+    }
+
     echo json_encode([
         'user' => $user,
         'sessions' => $sessions,
         'current_session' => session_id(),
+        'two_factor_enabled' => $account->is_two_factor_enabled((int) $user['id']),
+        'two_factor_pending' => $twoFactorPending,
+        'two_factor_pending_secret' => $twoFactorSecret,
+        'two_factor_pending_otpauth' => $twoFactorOtpAuth,
     ]);
     exit;
 }
 
 if ($method === 'PUT' || $method === 'PATCH') {
-if (!mol_require_valid_nonce('global_csrf')) {
+if (!mol_require_valid_nonce('global_csrf', $input)) {
         http_response_code(403);
         echo json_encode(['error' => 'Invalid CSRF token']);
         exit;
@@ -73,6 +90,15 @@ if (!mol_require_valid_nonce('global_csrf')) {
     $data = array_intersect_key($input, array_flip($allowed));
 
     // Validate uniqueness
+    // Rate limit account changes (prevent brute-force / abuse)
+    $rateKey = 'account_update_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $rate = mol_rate_limit($rateKey, 10, 60 * 5); // 10 updates per 5 minutes
+    if (!$rate['allowed']) {
+        http_response_code(429);
+        echo json_encode(['error' => 'Te veel verzoeken. Probeer het later opnieuw.']);
+        exit;
+    }
+
     if (!empty($input['check_unique'])) {
         // Quick uniqueness check (used for realtime validation)
         if (!empty($data['user_email'])) {
@@ -137,6 +163,8 @@ if (!mol_require_valid_nonce('global_csrf')) {
                 'expires' => $expires,
             ], JSON_THROW_ON_ERROR);
 
+            mol_audit($auth->id() ?? 0, $userId, 'email_change_requested', ['new_email' => $newEmail]);
+
             // Remove any existing pending requests for this user.
             $account->delete_user_meta_like($userId, 'pending_email_change_%');
 
@@ -183,6 +211,7 @@ if (!mol_require_valid_nonce('global_csrf')) {
         }
 
         $data['user_pass'] = $auth->hash_password($newPass);
+        mol_audit($auth->id() ?? 0, $auth->id() ?? null, 'password_changed');
     } elseif (!empty($input['current_password']) || !empty($input['new_password'])) {
         http_response_code(400);
         echo json_encode(['error' => 'Voor het wijzigen van het wachtwoord moet u huidig en nieuw wachtwoord invullen']);

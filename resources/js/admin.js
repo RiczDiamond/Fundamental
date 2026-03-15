@@ -1,7 +1,17 @@
 $(function () {
     // ---------- Helpers ----------
-    const getCsrfToken = () =>
-        $.getJSON('/resources/ajax/get-nonce.php').then((res) => res.nonce || '');
+    const getCsrfToken = () => {
+        const meta = $('meta[name="csrf-token"]').attr('content');
+        if (meta) {
+            return $.Deferred().resolve(meta).promise();
+        }
+
+        return $.ajax({
+            url: '/resources/ajax/get-nonce.php',
+            dataType: 'json',
+            xhrFields: { withCredentials: true },
+        }).then((res) => res.nonce || '');
+    };
 
     const ajaxWithCsrf = ({ url, method = 'GET', data = null }) => {
         const settings = {
@@ -63,10 +73,42 @@ $(function () {
         $btn.removeClass('loading');
     };
 
+    function enablePasswordToggle($container) {
+        const $pwFields = $container.find('input[type="password"]').not('.password-toggle-enabled');
+        $pwFields.each(function () {
+            const $input = $(this);
+            $input.addClass('password-toggle-enabled');
+
+            const $group = $input.closest('.input-group');
+            if ($group.length) {
+                $group.addClass('password');
+            }
+
+            const $toggle = $(
+                '<button type="button" class="password-toggle" aria-label="Toon/verberg wachtwoord">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" fill="currentColor"/><path d="M12 9a3 3 0 0 0 0 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
+                '</button>'
+            );
+
+            $input.after($toggle);
+
+            $toggle.on('click', () => {
+                const type = $input.attr('type') === 'password' ? 'text' : 'password';
+                $input.attr('type', type);
+            });
+        });
+    }
+
     // ---------- Login ----------
     if ($('#loginForm').length) {
         const $form = $('#loginForm');
         const $submit = $('#submitBtn');
+        const $twoFactor = $('#two-factor-form');
+        const $twoFactorCode = $('#two-factor-code');
+        const $twoFactorRecovery = $('#two-factor-recovery');
+        const $twoFactorSubmit = $('#two-factor-submit');
+        const $twoFactorCancel = $('#two-factor-cancel');
+        const hasTwoFactor = $twoFactor.length > 0;
 
         const startLogin = () => {
             $submit.addClass('loading in-progress');
@@ -78,8 +120,34 @@ $(function () {
             $submit.text('Inloggen');
         };
 
+        const showTwoFactor = () => {
+            $form.hide();
+            $twoFactor.show();
+        };
+
+        const hideTwoFactor = () => {
+            $twoFactor.hide();
+            $form.show();
+            $twoFactorCode.val('');
+            $twoFactorRecovery.val('');
+        };
+
+        const showError = (msg) => {
+            let $error = $('.error-message');
+            if (!$error.length) {
+                $error = $('<div class="error-message"></div>');
+                $('.form-container').prepend($error);
+            }
+            $error.text(msg);
+        };
+
+        const clearError = () => {
+            $('.error-message').remove();
+        };
+
         $form.on('submit', function (event) {
             event.preventDefault();
+            clearError();
 
             const data = {
                 action: 'login',
@@ -90,35 +158,58 @@ $(function () {
 
             startLogin();
 
-            getCsrfToken().then((csrfToken) => {
-                return $.ajax({
-                    url: '/resources/ajax/auth.php',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ ...data, _nonce_action: 'global_csrf', _nonce: csrfToken }),
-                    dataType: 'json',
-                    headers: {
-                        'X-CSRF-Token': csrfToken,
-                        'X-CSRF-Action': 'global_csrf',
-                    },
-                    xhrFields: { withCredentials: true },
-                });
+            ajaxWithCsrf({
+                url: '/resources/ajax/auth.php',
+                method: 'POST',
+                data: { ...data, _nonce_action: 'global_csrf' },
             })
-            .done(() => {
-                window.location.href = '/dashboard';
-            })
-            .fail((xhr) => {
-                const msg = xhr.responseJSON?.error || 'Inloggen mislukt';
-                let $error = $('.error-message');
+                .done((res) => {
+                    if (hasTwoFactor && res.two_factor) {
+                        showTwoFactor();
+                        return;
+                    }
+                    window.location.href = '/dashboard';
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Inloggen mislukt';
+                    showError(msg);
+                })
+                .always(endLogin);
+        });
 
-                if (!$error.length) {
-                    $error = $('<div class="error-message"></div>');
-                    $('.form-container').prepend($error);
+        if (hasTwoFactor) {
+            $twoFactorSubmit.on('click', function () {
+                const code = $twoFactorCode.val().trim();
+                const recovery = $twoFactorRecovery.val().trim();
+                if (!code && !recovery) {
+                    showError('Voer een 2FA-code of herstelcode in.');
+                    return;
                 }
 
-                $error.text(msg);
-            })
-            .always(endLogin);
+                startLogin();
+
+                ajaxWithCsrf({
+                    url: '/resources/ajax/auth.php',
+                    method: 'POST',
+                    data: { action: 'verify_2fa', code, recovery_code: recovery, _nonce_action: 'global_csrf' },
+                })
+                    .done(() => {
+                        window.location.href = '/dashboard';
+                    })
+                    .fail((xhr) => {
+                        const msg = xhr.responseJSON?.error || 'Ongeldige 2FA-code.';
+                        showError(msg);
+                    })
+                    .always(endLogin);
+            });
+
+            $twoFactorCancel.on('click', () => {
+                hideTwoFactor();
+            });
+        }
+
+        $twoFactorCancel.on('click', () => {
+            hideTwoFactor();
         });
 
         window.addEventListener('pageshow', function (event) {
@@ -129,6 +220,33 @@ $(function () {
 
         // Ensure password visibility toggle works on the login screen
         enablePasswordToggle($(document));
+
+        $('#login-recovery-email').on('click', function () {
+            const username = $('#username').val().trim();
+            if (!username) {
+                showError('Voer uw gebruikersnaam of e-mailadres in om herstelcodes te verzenden.');
+                return;
+            }
+
+            const $btn = $(this);
+            startButtonLoading($btn, 'Verzenden...');
+
+            ajaxWithCsrf({
+                url: '/resources/ajax/2fa-recovery.php',
+                method: 'POST',
+                data: { username, _nonce_action: 'global_csrf' },
+            })
+                .done(() => {
+                    showError('Indien het account bestaat, ontvangt u een e-mail met herstelcodes.');
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon de herstelcodes niet verzenden.';
+                    showError(msg);
+                })
+                .always(() => {
+                    stopButtonLoading($btn);
+                });
+        });
 
         return;
     }
@@ -269,11 +387,53 @@ $(function () {
             $container.html(items.join(''));
         };
 
+        const renderTwoFactorStatus = (enabled, pending) => {
+            const $status = $('#account-2fa-status');
+            const $setup = $('#account-2fa-setup');
+
+            if (enabled) {
+                $status.html('<strong style="color: #2e7d32;">2FA is ingeschakeld</strong> <button id="account-2fa-disable" class="btn-secondary" style="margin-left:6px;">Uitschakelen</button>');
+                $setup.hide();
+                return;
+            }
+
+            if (pending) {
+                $status.html('<strong style="color: #f57c00;">2FA is in voorbereiding. Voltooi verificatie.</strong>');
+                $setup.show();
+                return;
+            }
+
+            $status.html('<strong style="color: #d32f2f;">2FA is uitgeschakeld.</strong> <button id="account-2fa-enable" class="btn-primary" style="margin-left:6px;">Inschakelen</button>');
+            $setup.hide();
+        };
+
+        const showTwoFactorSetup = (secret, otpauth) => {
+            $('#account-2fa-secret').text(secret);
+
+            // Use a public QR generator (avoids blocked Google Charts and ensures reliable rendering).
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(otpauth);
+            $('#account-2fa-qr').attr('src', qrUrl);
+
+            $('#account-2fa-setup').show();
+        };
+
+        const hideTwoFactorSetup = () => {
+            $('#account-2fa-setup').hide();
+            $('#account-2fa-code').val('');
+            $('#account-2fa-recovery-list').hide().html('');
+        };
+
         const loadAccount = () => {
             ajaxWithCsrf({ url: '/resources/ajax/account.php', method: 'GET' })
                 .done((res) => {
                     fillForm(res.user || {});
                     renderSessions(res.sessions || [], res.current_session);
+                    renderTwoFactorStatus(res.two_factor_enabled, res.two_factor_pending);
+
+                    // If 2FA is pending, ensure the QR/secret are shown.
+                    if (res.two_factor_pending && res.two_factor_pending_secret && res.two_factor_pending_otpauth) {
+                        showTwoFactorSetup(res.two_factor_pending_secret, res.two_factor_pending_otpauth);
+                    }
                 })
                 .fail((xhr) => {
                     const msg = xhr.responseJSON?.error || 'Kon account niet laden.';
@@ -420,7 +580,370 @@ $(function () {
                 });
         });
 
+        $(document).on('click', '#account-2fa-enable', function () {
+            startButtonLoading($(this), 'Bezig...');
+            ajaxWithCsrf({ url: '/resources/ajax/2fa.php', method: 'POST', data: { action: 'generate' } })
+                .done((res) => {
+                    if (res.secret && res.otpauth) {
+                        showTwoFactorSetup(res.secret, res.otpauth);
+                        renderTwoFactorStatus(false, true);
+                    } else {
+                        showAlert($alert, 'Kon 2FA niet genereren.');
+                    }
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon 2FA niet genereren.';
+                    showAlert($alert, msg);
+                })
+                .always(() => {
+                    stopButtonLoading($(this));
+                });
+        });
+
+        $(document).on('click', '#account-2fa-disable', function () {
+            if (!confirm('Weet je zeker dat je 2FA wilt uitschakelen?')) {
+                return;
+            }
+
+            startButtonLoading($(this), 'Bezig...');
+            ajaxWithCsrf({ url: '/resources/ajax/2fa.php', method: 'POST', data: { action: 'disable' } })
+                .done(() => {
+                    showAlert($alert, '2FA uitgeschakeld.', 'success');
+                    hideTwoFactorSetup();
+                    renderTwoFactorStatus(false, false);
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon 2FA niet uitschakelen.';
+                    showAlert($alert, msg);
+                })
+                .always(() => {
+                    stopButtonLoading($(this));
+                });
+        });
+
+        $(document).on('click', '#account-2fa-verify', function () {
+            const code = $('#account-2fa-code').val().trim();
+            if (!code) {
+                showAlert($alert, 'Voer een 2FA-code in.');
+                return;
+            }
+
+            startButtonLoading($(this), 'Controleren...');
+            ajaxWithCsrf({ url: '/resources/ajax/2fa.php', method: 'POST', data: { action: 'verify', code } })
+                .done(() => {
+                    showAlert($alert, '2FA is ingeschakeld!', 'success');
+                    hideTwoFactorSetup();
+                    renderTwoFactorStatus(true, false);
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Ongeldige 2FA-code.';
+                    showAlert($alert, msg);
+                })
+                .always(() => {
+                    stopButtonLoading($(this));
+                });
+        });
+
+        $(document).on('click', '#account-2fa-recovery', function () {
+            startButtonLoading($(this), 'Bezig...');
+            ajaxWithCsrf({ url: '/resources/ajax/2fa.php', method: 'POST', data: { action: 'recovery_codes' } })
+                .done((res) => {
+                    const list = (res.codes || []).map((c) => `<div style="padding:4px 0;">${c}</div>`).join('');
+                    $('#account-2fa-recovery-list').html(list).show();
+                    showAlert($alert, 'Herstelcodes gegenereerd. Bewaar ze op een veilige plek.', 'success');
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon herstelcodes niet genereren.';
+                    showAlert($alert, msg);
+                })
+                .always(() => {
+                    stopButtonLoading($(this));
+                });
+        });
+
+        $(document).on('click', '#account-2fa-clear-recovery', function () {
+            startButtonLoading($(this), 'Bezig...');
+            ajaxWithCsrf({ url: '/resources/ajax/2fa.php', method: 'POST', data: { action: 'clear_recovery_codes' } })
+                .done(() => {
+                    $('#account-2fa-recovery-list').hide().html('');
+                    showAlert($alert, 'Herstelcodes gewist.', 'success');
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon herstelcodes niet wissen.';
+                    showAlert($alert, msg);
+                })
+                .always(() => {
+                    stopButtonLoading($(this));
+                });
+        });
+
         loadAccount();
+    }
+
+    // ---------- Audit log ----------
+    if ($('#audit-card').length) {
+        const $alert = $('#audit-alert');
+        const $tbody = $('#audit-table tbody');
+        const $pagination = $('#audit-pagination');
+        const $filterAction = $('#audit-filter-action');
+        const $filterActor = $('#audit-filter-actor');
+        const $filterTarget = $('#audit-filter-target');
+        const $filterSince = $('#audit-filter-since');
+        const $filterUntil = $('#audit-filter-until');
+        const $refresh = $('#audit-refresh');
+
+        let auditPage = 1;
+        const auditPerPage = 25;
+
+        const renderAuditRows = (items) => {
+            if (!items || !items.length) {
+                $tbody.html('<tr><td colspan="5" style="padding:16px; text-align:center; color:#888;">Geen auditlogs gevonden.</td></tr>');
+                return;
+            }
+
+            const rows = items.map((item) => {
+                const actor = item.actor_display ? `${item.actor_display} (${item.actor_login})` : item.actor_login || item.actor_id || '—';
+                const target = item.target_display ? `${item.target_display} (${item.target_login})` : item.target_login || item.target_id || '—';
+                const meta = item.meta ? JSON.stringify(item.meta) : '';
+                const date = item.created_at ? new Date(item.created_at).toLocaleString() : '';
+                return `
+                    <tr>
+                        <td style="padding:10px; border-bottom:1px solid #eee; white-space:nowrap;">${date}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee;">${item.action}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee;">${actor}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee;">${target}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee; font-family:monospace; font-size:12px; color:#444;">${meta}</td>
+                    </tr>
+                `;
+            });
+
+            $tbody.html(rows.join(''));
+        };
+
+        const updatePagination = (total, page, perPage) => {
+            const totalPages = Math.max(1, Math.ceil(total / perPage));
+            auditPage = Math.min(Math.max(1, page), totalPages);
+
+            if (totalPages <= 1) {
+                $pagination.html('');
+                return;
+            }
+
+            const buttons = [];
+            for (let p = 1; p <= totalPages; p += 1) {
+                const active = p === auditPage ? 'background:#333;color:#fff;' : '';
+                buttons.push(`<button data-page="${p}" style="padding:6px 10px; border:1px solid #ddd; background:#fff; cursor:pointer; ${active}">${p}</button>`);
+            }
+
+            $pagination.html(buttons.join(''));
+        };
+
+        const loadAudit = () => {
+            const params = new URLSearchParams();
+            params.set('page', String(auditPage));
+            params.set('per_page', String(auditPerPage));
+
+            const action = $filterAction.val().trim();
+            if (action) params.set('action', action);
+
+            const actor = $filterActor.val().trim();
+            if (actor) params.set('actor', actor);
+
+            const target = $filterTarget.val().trim();
+            if (target) params.set('target', target);
+
+            const since = $filterSince.val().trim();
+            if (since) params.set('since', since);
+
+            const until = $filterUntil.val().trim();
+            if (until) params.set('until', until);
+
+            ajaxWithCsrf({ url: '/resources/ajax/audit.php?' + params.toString(), method: 'GET' })
+                .done((res) => {
+                    renderAuditRows(res.items || []);
+                    updatePagination(res.total || 0, res.page || 1, res.per_page || auditPerPage);
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon auditlog niet laden.';
+                    showAlert($alert, msg);
+                    $tbody.html('<tr><td colspan="5" style="padding:16px; text-align:center; color:#888;">Kon niet laden.</td></tr>');
+                });
+        };
+
+        const scheduleReload = (delay = 300) => {
+            clearTimeout($refresh.data('timer'));
+            const timer = setTimeout(loadAudit, delay);
+            $refresh.data('timer', timer);
+        };
+
+        $refresh.on('click', loadAudit);
+        $filterAction.on('input', () => scheduleReload(500));
+        $filterActor.on('input', () => scheduleReload(500));
+        $filterTarget.on('input', () => scheduleReload(500));
+        $filterSince.on('change', loadAudit);
+        $filterUntil.on('change', loadAudit);
+
+        $('#audit-export').on('click', () => {
+            const params = new URLSearchParams();
+            params.set('format', 'csv');
+            params.set('page', String(auditPage));
+            params.set('per_page', String(auditPerPage));
+
+            const action = $filterAction.val().trim();
+            if (action) params.set('action', action);
+
+            const actor = $filterActor.val().trim();
+            if (actor) params.set('actor', actor);
+
+            const target = $filterTarget.val().trim();
+            if (target) params.set('target', target);
+
+            const since = $filterSince.val().trim();
+            if (since) params.set('since', since);
+
+            const until = $filterUntil.val().trim();
+            if (until) params.set('until', until);
+
+            window.open('/resources/ajax/audit.php?' + params.toString(), '_blank');
+        });
+
+        $pagination.on('click', 'button', function () {
+            const newPage = parseInt($(this).data('page'), 10);
+            if (Number.isNaN(newPage) || newPage === auditPage) return;
+            auditPage = newPage;
+            loadAudit();
+        });
+
+        loadAudit();
+    }
+
+    // ---------- Roles / capabilities ----------
+    if ($('#roles-card').length) {
+        const $alert = $('#roles-alert');
+        const $tbody = $('#roles-table tbody');
+        const $newRole = $('#roles-new-name');
+        const $newCap = $('#roles-new-cap');
+
+        let rolesConfig = {};
+
+        const getAllCaps = () => {
+            const caps = new Set();
+            Object.values(rolesConfig).forEach((capsArr) => {
+                (capsArr || []).forEach((c) => caps.add(c));
+            });
+            return Array.from(caps).sort();
+        };
+
+        const renderRoles = () => {
+            const caps = getAllCaps();
+
+            if (!Object.keys(rolesConfig).length) {
+                $tbody.html('<tr><td colspan="3" style="padding:16px; text-align:center; color:#888;">Geen rollen geconfigureerd.</td></tr>');
+                return;
+            }
+
+            const rows = Object.entries(rolesConfig).map(([role, roleCaps]) => {
+                const capCheckboxes = caps
+                    .map((cap) => {
+                        const checked = (roleCaps || []).includes(cap) ? 'checked' : '';
+                        return `<label style="margin-right:10px;"><input type="checkbox" class="role-cap" data-role="${role}" data-cap="${cap}" ${checked} /> ${cap}</label>`;
+                    })
+                    .join('<br>');
+
+                return `
+                    <tr>
+                        <td style="padding:10px; border-bottom:1px solid #eee; vertical-align:top;">${role}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee;">${capCheckboxes}</td>
+                        <td style="padding:10px; border-bottom:1px solid #eee; white-space:nowrap;"><button class="btn-secondary roles-delete" data-role="${role}">Verwijderen</button></td>
+                    </tr>
+                `;
+            });
+
+            $tbody.html(rows.join(''));
+        };
+
+        const loadRoles = () => {
+            ajaxWithCsrf({ url: '/resources/ajax/roles.php', method: 'GET' })
+                .done((res) => {
+                    rolesConfig = res.roles || {};
+                    renderRoles();
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Kon rollenconfiguratie niet laden.';
+                    showAlert($alert, msg);
+                    $tbody.html('<tr><td colspan="3" style="padding:16px; text-align:center; color:#888;">Kon niet laden.</td></tr>');
+                });
+        };
+
+        const saveRoles = () => {
+            ajaxWithCsrf({ url: '/resources/ajax/roles.php', method: 'POST', data: { roles: rolesConfig } })
+                .done((res) => {
+                    rolesConfig = res.roles || rolesConfig;
+                    renderRoles();
+                    showAlert($alert, 'Rollenconfiguratie opgeslagen.', 'success');
+                })
+                .fail((xhr) => {
+                    const msg = xhr.responseJSON?.error || 'Opslaan mislukt.';
+                    showAlert($alert, msg);
+                });
+        };
+
+        $('#roles-add').on('click', () => {
+            const roleName = $newRole.val().trim();
+            const cap = $newCap.val().trim();
+            if (!roleName) {
+                showAlert($alert, 'Vul een rolnaam in.');
+                return;
+            }
+
+            if (rolesConfig[roleName]) {
+                showAlert($alert, 'Die rol bestaat al.');
+                return;
+            }
+
+            rolesConfig[roleName] = cap ? [cap] : [];
+            $newRole.val('');
+            $newCap.val('');
+            renderRoles();
+        });
+
+        $('#roles-save').on('click', () => {
+            saveRoles();
+        });
+
+        $tbody.on('change', '.role-cap', function () {
+            const $checkbox = $(this);
+            const role = $checkbox.data('role');
+            const cap = $checkbox.data('cap');
+
+            if (!role || !cap) {
+                return;
+            }
+
+            const checked = $checkbox.is(':checked');
+            const caps = rolesConfig[role] || [];
+            if (checked) {
+                if (!caps.includes(cap)) {
+                    caps.push(cap);
+                }
+            } else {
+                rolesConfig[role] = caps.filter((c) => c !== cap);
+            }
+        });
+
+        $tbody.on('click', '.roles-delete', function () {
+            const role = $(this).data('role');
+            if (!role) return;
+
+            if (!confirm(`Weet je zeker dat je de rol "${role}" wilt verwijderen?`)) {
+                return;
+            }
+
+            delete rolesConfig[role];
+            renderRoles();
+        });
+
+        loadRoles();
     }
 
     // ---------- Users ----------
@@ -740,32 +1263,6 @@ $(function () {
             usersPage = newPage;
             loadUsers();
         });
-
-        function enablePasswordToggle($container) {
-            const $pwFields = $container.find('input[type="password"]').not('.password-toggle-enabled');
-            $pwFields.each(function () {
-                const $input = $(this);
-                $input.addClass('password-toggle-enabled');
-
-                const $group = $input.closest('.input-group');
-                if ($group.length) {
-                    $group.addClass('password');
-                }
-
-                const $toggle = $(
-                    '<button type="button" class="password-toggle" aria-label="Toon/verberg wachtwoord">' +
-                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" fill="currentColor"/><path d="M12 9a3 3 0 0 0 0 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
-                    '</button>'
-                );
-
-                $input.after($toggle);
-
-                $toggle.on('click', () => {
-                    const type = $input.attr('type') === 'password' ? 'text' : 'password';
-                    $input.attr('type', type);
-                });
-            });
-        }
 
         // Enable password toggles on dashboard load
         enablePasswordToggle($(document));

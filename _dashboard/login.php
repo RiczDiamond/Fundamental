@@ -63,7 +63,7 @@
             <div class="image"></div>
             <div class="text">
                 <h1>Welkom terug</h1>
-                <h2>Bij ons dashboard</h2>
+                <p>Hulp nodig bij websitebeheer? Bel of mail ons gerust.</p>
             </div>
         </div>
 
@@ -134,6 +134,7 @@
 
                     <a href="/wachtwoord-vergeten" class="forgot-link">Wachtwoord vergeten?</a>
                 </form>
+
             </div>
 
             <a href="/" class="website-link">Naar de website</a>

@@ -1,18 +1,26 @@
 <?php
 
-    // ---------- SCHEME ----------
-    $https = $_SERVER['HTTPS'] ?? '';
-    $scheme = (!empty($https) && strtolower($https) !== 'off') ? 'https' : 'http';
+    // If an explicit BASE_URL is configured via ENV, use it (useful for email links).
+    $envBase = trim(getenv('BASE_URL') ?: getenv('APP_URL') ?: '');
+    if ($envBase !== '') {
+        define('BASE_URL', rtrim($envBase, '/'));
+        $host = parse_url(BASE_URL, PHP_URL_HOST) ?: ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $scheme = parse_url(BASE_URL, PHP_URL_SCHEME) ?: 'http';
+    } else {
+        // ---------- SCHEME ----------
+        $https = $_SERVER['HTTPS'] ?? '';
+        $scheme = (!empty($https) && strtolower($https) !== 'off') ? 'https' : 'http';
 
-    // ---------- HOST ----------
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $host = preg_replace('/[^a-z0-9\.\-:\[\]]/i', '', $host);
+        // ---------- HOST ----------
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $host = preg_replace('/[^a-z0-9\.\-:\[\]]/i', '', $host);
 
-    if ($host === '') {
-        $host = 'localhost';
+        if ($host === '') {
+            $host = 'localhost';
+        }
+
+        define('BASE_URL', $scheme . '://' . $host);
     }
-
-    define('BASE_URL', $scheme . '://' . $host);
 
     // ---------- SUBDOMAIN ----------
     $hostWithoutPort = preg_replace('/:\d+$/', '', $host);

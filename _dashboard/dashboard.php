@@ -6,7 +6,7 @@
     // Determine section from URL: /dashboard/{section}
     $section = $url[1] ?? 'home';
 
-    $allowed = ['home', 'account', 'posts', 'users', 'verify-email'];
+    $allowed = ['home', 'account', 'posts', 'users', 'roles', 'audit', 'verify-email'];
 
     if (!in_array($section, $allowed, true)) {
         http_response_code(404);
