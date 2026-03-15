@@ -2,13 +2,13 @@
 
     if (is_user_logged_in()) {
 
-        mol_safe_redirect('/dashboard/pages');
+        mol_safe_redirect('/dashboard');
 
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-        if (!mol_require_valid_nonce('dashboard_login')) {
+        if (!mol_require_valid_nonce('global_csrf')) {
         
             $error = 'Sessie verlopen. Vernieuw de pagina en probeer opnieuw.';
         
@@ -24,7 +24,7 @@
 
             if ($user !== false) {
             
-                mol_safe_redirect('/dashboard/pages');
+                mol_safe_redirect('/dashboard');
             
             }
 
@@ -35,6 +35,7 @@
     }
 
 ?>
+<?php $globalNonce = mol_get_nonce('global_csrf'); ?>
 
 <!DOCTYPE html>
 <html lang="nl">
@@ -42,10 +43,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Dashboard</title>
-    <link href="/css/login.css" rel="stylesheet" type="text/css" media="all">
+    <link href="/resources/style/login.css" rel="stylesheet" type="text/css" media="all">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;700&family=Roboto&display=swap" rel="stylesheet">
+    <meta name="csrf-token" content="<?php echo esc_attr($globalNonce); ?>">
 </head>
 <body>
     <script>
@@ -82,7 +84,8 @@
                 </div>
 
                 <form method="POST" action="/login" id="loginForm">
-                    <?php mol_nonce_field('dashboard_login'); ?>
+                    <input type="hidden" name="_nonce_action" value="global_csrf">
+                    <input type="hidden" name="_nonce" value="<?php echo esc_attr($globalNonce); ?>">
 
                     <div class="input-group">
                         <label for="username">Gebruikersnaam</label>
@@ -130,28 +133,8 @@
         </div>
     </div>
 
-    <script src="/js/jq.js" type="text/javascript"></script>
-    <!-- <script src="/js/admin.js" type="text/javascript"></script> -->
+    <script src="/resources/js/jq.js" type="text/javascript"></script>
+    <script src="/resources/js/admin.js" type="text/javascript"></script>
 
-    <script>
-        // Form loading state
-        const form = document.getElementById('loginForm');
-        const submitBtn = document.getElementById('submitBtn');
-
-        if (form && submitBtn) {
-            form.addEventListener('submit', function() {
-                submitBtn.classList.add('loading', 'in-progress');
-                submitBtn.innerHTML = 'Bezig met inloggen...';
-            });
-        }
-
-        // Remove loading state if back button is used
-        window.addEventListener('pageshow', function(event) {
-            if (event.persisted) {
-                submitBtn.classList.remove('loading', 'in-progress');
-                submitBtn.innerHTML = 'Inloggen';
-            }
-        });
-    </script>
 </body>
 </html>

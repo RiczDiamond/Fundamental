@@ -1,0 +1,688 @@
+[2026-03-14T23:31:43+00:00] To: info@ricardomol.nl Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=ec03cd58e838da6122&token=0d07551f1930e21259d7df46886130bf49e7ec4b2349ac7769bda3c7c5b941d0
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+[2026-03-14T23:33:08+00:00] To: info@ricardomol.nl Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=262c8aeba6361e7806&token=5c01ec38c1a646e91ae2f5ab3323bf25b7db6dee000afef50810f27551a67d0b
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AM9P193CA0023.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:33:03 +0000 [08DE81796C196247]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM9P193CA0023.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM9P193CA0023.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<noreply@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<info@ricardomol.nl>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:33:08 +0000
+CLIENT -> SERVER: To: info@ricardomol.nl
+CLIENT -> SERVER: From: Mol Websites <noreply@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <LezGTNAa1ytUxcMCC4FV6J7REtC8ITPzrCWAPXqzl4@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_LezGTNAa1ytUxcMCC4FV6J7REtC8ITPzrCWAPXqzl4"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_LezGTNAa1ytUxcMCC4FV6J7REtC8ITPzrCWAPXqzl4
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=262c8aeba6361e7806&token=5c01ec38c1a646e91ae2f5ab3323bf25b7db6dee000afef50810f27551a67d0b
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_LezGTNAa1ytUxcMCC4FV6J7REtC8ITPzrCWAPXqzl4
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=262c8aeba6361e7806&token=5c01ec38c1a646e91ae2f5ab3323bf25b7db6dee000afef50810f27551a67d0b
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_LezGTNAa1ytUxcMCC4FV6J7REtC8ITPzrCWAPXqzl4--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 554 5.2.252 SendAsDenied; r.mol@molwebsites.nl not allowed to send as noreply@molwebsites.nl; STOREDRV.Submission.Exception:SendAsDeniedException.MapiExceptionSendAsDenied; Failed to process message due to a permanent exception with message [BeginDiagnosticData]Cannot submit message. 1.84300:0A000000, 1.84300:0A000000, 1.84300:0E000000, 1.84300:32000000, 1.73948:00000000, 5.71140:67000000446F526F70730000, 1.108572:00000000, 0.117068:56000000, 1.79180:0A000000, 1.79180:0A000000, 1.79180:0E000000, 1.79180:32SMTP ERROR: DATA END command failed: 554 5.2.252 SendAsDenied; r.mol@molwebsites.nl not allowed to send as noreply@molwebsites.nl; STOREDRV.Submission.Exception:SendAsDeniedException.MapiExceptionSendAsDenied; Failed to process message due to a permanent exception with message [BeginDiagnosticData]Cannot submit message. 1.84300:0A000000, 1.84300:0A000000, 1.84300:0E000000, 1.84300:32000000, 1.73948:00000000, 5.71140:67000000446F526F70730000, 1.108572:00000000, 0.117068:56000000, 1.79180:0A000000, 1.79180:0A000000, 1.79180:0E000000, 1.79180:32SMTP Error: data not accepted.[2026-03-14T23:34:43+00:00] To: jjrmol2005@gmail.com Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=174b5264175070fb0b&token=1b2538a6a80bd1f6a5c49e4d007cf4fdd1f25bcbdbd945a654d762b76bd8ad7c
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AS9PR0301CA0014.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:34:39 +0000 [08DE80DCF8C3F33B]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS9PR0301CA0014.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS9PR0301CA0014.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<noreply@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<jjrmol2005@gmail.com>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:34:43 +0000
+CLIENT -> SERVER: To: jjrmol2005@gmail.com
+CLIENT -> SERVER: From: Mol Websites <noreply@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <MpggqAuIMIMBDOIuUpNev3rnELdJHBZ8jNohjRyUyI@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_MpggqAuIMIMBDOIuUpNev3rnELdJHBZ8jNohjRyUyI"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_MpggqAuIMIMBDOIuUpNev3rnELdJHBZ8jNohjRyUyI
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=174b5264175070fb0b&token=1b2538a6a80bd1f6a5c49e4d007cf4fdd1f25bcbdbd945a654d762b76bd8ad7c
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_MpggqAuIMIMBDOIuUpNev3rnELdJHBZ8jNohjRyUyI
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=174b5264175070fb0b&token=1b2538a6a80bd1f6a5c49e4d007cf4fdd1f25bcbdbd945a654d762b76bd8ad7c
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_MpggqAuIMIMBDOIuUpNev3rnELdJHBZ8jNohjRyUyI--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 554 5.2.252 SendAsDenied; r.mol@molwebsites.nl not allowed to send as noreply@molwebsites.nl; STOREDRV.Submission.Exception:SendAsDeniedException.MapiExceptionSendAsDenied; Failed to process message due to a permanent exception with message [BeginDiagnosticData]Cannot submit message. 1.84300:0A000000, 1.84300:0A000000, 1.84300:0E000000, 1.84300:32000000, 1.73948:00000000, 5.71140:67000000446F526F70730000, 1.108572:00000000, 0.117068:0B000000, 1.79180:0A000000, 1.79180:0A000000, 1.79180:0E000000, 1.79180:32SMTP ERROR: DATA END command failed: 554 5.2.252 SendAsDenied; r.mol@molwebsites.nl not allowed to send as noreply@molwebsites.nl; STOREDRV.Submission.Exception:SendAsDeniedException.MapiExceptionSendAsDenied; Failed to process message due to a permanent exception with message [BeginDiagnosticData]Cannot submit message. 1.84300:0A000000, 1.84300:0A000000, 1.84300:0E000000, 1.84300:32000000, 1.73948:00000000, 5.71140:67000000446F526F70730000, 1.108572:00000000, 0.117068:0B000000, 1.79180:0A000000, 1.79180:0A000000, 1.79180:0E000000, 1.79180:32SMTP Error: data not accepted.[2026-03-14T23:36:05+00:00] To: jjrmol2005@gmail.com Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=3eb41d7694015e3c1d&token=0809359941810098e1bcfd7b065877756228d1b6ae03006d4528df9d61a88e6a
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AS4P190CA0039.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:36:00 +0000 [08DE817A13DD6C6C]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS4P190CA0039.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS4P190CA0039.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<r.mol@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<jjrmol2005@gmail.com>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:36:05 +0000
+CLIENT -> SERVER: To: jjrmol2005@gmail.com
+CLIENT -> SERVER: From: Mol Websites <r.mol@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=3eb41d7694015e3c1d&token=0809359941810098e1bcfd7b065877756228d1b6ae03006d4528df9d61a88e6a
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=3eb41d7694015e3c1d&token=0809359941810098e1bcfd7b065877756228d1b6ae03006d4528df9d61a88e6a
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 250 2.0.0 OK <SgkauHhHWiOTAzZvXhrAr1wlJOFeOtxIzWaXdQpNPNk@fundamental.test> [Hostname=DB5P192MB2241.EURP192.PROD.OUTLOOK.COM]
+CLIENT -> SERVER: QUIT
+SERVER -> CLIENT: 221 2.0.0 Service closing transmission channel
+[2026-03-14T23:40:40+00:00] To: jjrmol2005@gmail.com Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=f7042a03dc79f0e8ed&token=7f4e993e90095205edcc88f423a7de110a93631216cad0d88b3b3bcd7a2571a2
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AM8P190CA0012.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:40:40 +0000 [08DE81E0AC8FF577]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM8P190CA0012.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM8P190CA0012.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<r.mol@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<jjrmol2005@gmail.com>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:40:40 +0000
+CLIENT -> SERVER: To: jjrmol2005@gmail.com
+CLIENT -> SERVER: From: Mol Websites <r.mol@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=f7042a03dc79f0e8ed&token=7f4e993e90095205edcc88f423a7de110a93631216cad0d88b3b3bcd7a2571a2
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: <!DOCTYPE html>
+CLIENT -> SERVER: <html lang="nl">
+CLIENT -> SERVER: <head>
+CLIENT -> SERVER:   <meta charset="UTF-8">
+CLIENT -> SERVER:   <meta name="viewport" content="width=device-width,initial-scale=1">
+CLIENT -> SERVER:   <title>Wachtwoord opnieuw instellen</title>
+CLIENT -> SERVER:   <style>
+CLIENT -> SERVER:     body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:#f5f5f7; }
+CLIENT -> SERVER:     .email-wrapper { width:100%; background:#f5f5f7; padding:20px 0; }
+CLIENT -> SERVER:     .email-content { max-width:600px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; }
+CLIENT -> SERVER:     .email-header { padding:20px 30px; background:#1f2937; color:#fff; }
+CLIENT -> SERVER:     .email-body { padding:30px; color:#1f2937; }
+CLIENT -> SERVER:     .button { display:inline-block; padding:12px 20px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; }
+CLIENT -> SERVER:     .footer { padding:20px 30px; font-size:12px; color:#777; }
+CLIENT -> SERVER:     .preheader { display:none; visibility:hidden; opacity:0; height:0; width:0; }
+CLIENT -> SERVER:   </style>
+CLIENT -> SERVER: </head>
+CLIENT -> SERVER: <body>
+CLIENT -> SERVER:   <span class="preheader">Je ontvangt dit bericht omdat je een wachtwoordreset hebt aangevraagd.</span>
+CLIENT -> SERVER:   <div class="email-wrapper">
+CLIENT -> SERVER:     <div class="email-content">
+CLIENT -> SERVER:       <div class="email-header">
+CLIENT -> SERVER:         <img src="molwebsites-brand.svg" alt="Logo" style="max-height:36px;" />
+CLIENT -> SERVER:         <h1 style="margin:16px 0 0; font-size:18px;">Wachtwoord opnieuw instellen</h1>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="email-body">
+CLIENT -> SERVER:         <p>Hallo admin,<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):<br />
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=f7042a03dc79f0e8ed&amp;token=7f4e993e90095205edcc88f423a7de110a93631216cad0d88b3b3bcd7a2571a2<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Groeten,<br />
+CLIENT -> SERVER: Website<br />
+CLIENT -> SERVER: </p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="footer">
+CLIENT -> SERVER:         <p style="margin:0;font-size:12px;color:#888;">&copy; 2026 Fundamenteel. Alle rechten voorbehouden.</p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:     </div>
+CLIENT -> SERVER:   </div>
+CLIENT -> SERVER: </body>
+CLIENT -> SERVER: </html>
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 250 2.0.0 OK <NZMiaomoGRaQllMADb3r5xrIc6MsXzDCx0IrFjiBHs@fundamental.test> [Hostname=DB5P192MB2241.EURP192.PROD.OUTLOOK.COM]
+CLIENT -> SERVER: QUIT
+SERVER -> CLIENT: 221 2.0.0 Service closing transmission channel
+[2026-03-14T23:41:19+00:00] To: jjrmol2005@gmail.com Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=a02bdf74dc54d6a5e4&token=dc0fb13370428900f71d5728085a3f41322e9ca888fc9534997c19ac6351c9c4
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AS4P190CA0039.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:41:14 +0000 [08DE817A13DD871E]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS4P190CA0039.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AS4P190CA0039.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<r.mol@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<jjrmol2005@gmail.com>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:41:19 +0000
+CLIENT -> SERVER: To: jjrmol2005@gmail.com
+CLIENT -> SERVER: From: Mol Websites <r.mol@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=a02bdf74dc54d6a5e4&token=dc0fb13370428900f71d5728085a3f41322e9ca888fc9534997c19ac6351c9c4
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: <!DOCTYPE html>
+CLIENT -> SERVER: <html lang="nl">
+CLIENT -> SERVER: <head>
+CLIENT -> SERVER:   <meta charset="UTF-8">
+CLIENT -> SERVER:   <meta name="viewport" content="width=device-width,initial-scale=1">
+CLIENT -> SERVER:   <title>Wachtwoord opnieuw instellen</title>
+CLIENT -> SERVER:   <style>
+CLIENT -> SERVER:     body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:#f5f5f7; }
+CLIENT -> SERVER:     .email-wrapper { width:100%; background:#f5f5f7; padding:20px 0; }
+CLIENT -> SERVER:     .email-content { max-width:600px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; }
+CLIENT -> SERVER:     .email-header { padding:20px 30px; background:#1f2937; color:#fff; }
+CLIENT -> SERVER:     .email-body { padding:30px; color:#1f2937; }
+CLIENT -> SERVER:     .button { display:inline-block; padding:12px 20px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; }
+CLIENT -> SERVER:     .footer { padding:20px 30px; font-size:12px; color:#777; }
+CLIENT -> SERVER:     .preheader { display:none; visibility:hidden; opacity:0; height:0; width:0; }
+CLIENT -> SERVER:   </style>
+CLIENT -> SERVER: </head>
+CLIENT -> SERVER: <body>
+CLIENT -> SERVER:   <span class="preheader">Je ontvangt dit bericht omdat je een wachtwoordreset hebt aangevraagd.</span>
+CLIENT -> SERVER:   <div class="email-wrapper">
+CLIENT -> SERVER:     <div class="email-content">
+CLIENT -> SERVER:       <div class="email-header">
+CLIENT -> SERVER:         <img src="../../molwebsites-brand.svg" alt="Logo" style="max-height:36px;" />
+CLIENT -> SERVER:         <h1 style="margin:16px 0 0; font-size:18px;">Wachtwoord opnieuw instellen</h1>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="email-body">
+CLIENT -> SERVER:         <p>Hallo admin,<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):<br />
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=a02bdf74dc54d6a5e4&amp;token=dc0fb13370428900f71d5728085a3f41322e9ca888fc9534997c19ac6351c9c4<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Groeten,<br />
+CLIENT -> SERVER: Website<br />
+CLIENT -> SERVER: </p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="footer">
+CLIENT -> SERVER:         <p style="margin:0;font-size:12px;color:#888;">&copy; 2026 Fundamenteel. Alle rechten voorbehouden.</p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:     </div>
+CLIENT -> SERVER:   </div>
+CLIENT -> SERVER: </body>
+CLIENT -> SERVER: </html>
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 250 2.0.0 OK <zB7I5g0urcbCGP9eI6ddb4miWQ79oLmKVG04XpZY@fundamental.test> [Hostname=DB5P192MB2241.EURP192.PROD.OUTLOOK.COM]
+CLIENT -> SERVER: QUIT
+SERVER -> CLIENT: 221 2.0.0 Service closing transmission channel
+[2026-03-14T23:42:09+00:00] To: jjrmol2005@gmail.com Subject: Wachtwoord opnieuw instellen
+Hallo admin,
+
+Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+
+Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+https://fundamental.test/wachtwoord-vergeten?selector=be1d9ca8c2069cb7d6&token=ab8fd261abbdaf8e6a825e5e8837a851c566172c83cf92419339ded8d9f72b15
+
+Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+
+Groeten,
+Website
+
+SERVER -> CLIENT: 220 AM8P191CA0010.outlook.office365.com Microsoft ESMTP MAIL Service ready at Sat, 14 Mar 2026 23:42:05 +0000 [08DE80D8EF49EBD7]
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM8P191CA0010.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-STARTTLS
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: STARTTLS
+SERVER -> CLIENT: 220 2.0.0 SMTP server ready
+CLIENT -> SERVER: EHLO fundamental.test
+SERVER -> CLIENT: 250-AM8P191CA0010.outlook.office365.com Hello [2a02:a452:350a:0:44f3:e386:5069:d1b3]
+250-SIZE 157286400
+250-PIPELINING
+250-DSN
+250-ENHANCEDSTATUSCODES
+250-AUTH LOGIN XOAUTH2
+250-8BITMIME
+250-BINARYMIME
+250-CHUNKING
+250 SMTPUTF8
+CLIENT -> SERVER: AUTH LOGIN
+SERVER -> CLIENT: 334 VXNlcm5hbWU6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 334 UGFzc3dvcmQ6
+CLIENT -> SERVER: [credentials hidden]SERVER -> CLIENT: 235 2.7.0 Authentication successful
+CLIENT -> SERVER: MAIL FROM:<r.mol@molwebsites.nl>
+SERVER -> CLIENT: 250 2.1.0 Sender OK
+CLIENT -> SERVER: RCPT TO:<jjrmol2005@gmail.com>
+SERVER -> CLIENT: 250 2.1.5 Recipient OK
+CLIENT -> SERVER: DATA
+SERVER -> CLIENT: 354 Start mail input; end with <CRLF>.<CRLF>
+CLIENT -> SERVER: Date: Sat, 14 Mar 2026 23:42:09 +0000
+CLIENT -> SERVER: To: jjrmol2005@gmail.com
+CLIENT -> SERVER: From: Mol Websites <r.mol@molwebsites.nl>
+CLIENT -> SERVER: Subject: Wachtwoord opnieuw instellen
+CLIENT -> SERVER: Message-ID: <4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ@fundamental.test>
+CLIENT -> SERVER: X-Mailer: PHPMailer 6.9.1 (https://github.com/PHPMailer/PHPMailer)
+CLIENT -> SERVER: MIME-Version: 1.0
+CLIENT -> SERVER: Content-Type: multipart/alternative;
+CLIENT -> SERVER:  boundary="b1=_4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ"
+CLIENT -> SERVER: Content-Transfer-Encoding: 8bit
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ
+CLIENT -> SERVER: Content-Type: text/plain; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Hallo admin,
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=be1d9ca8c2069cb7d6&token=ab8fd261abbdaf8e6a825e5e8837a851c566172c83cf92419339ded8d9f72b15
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.
+CLIENT -> SERVER: 
+CLIENT -> SERVER: Groeten,
+CLIENT -> SERVER: Website
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ
+CLIENT -> SERVER: Content-Type: text/html; charset=us-ascii
+CLIENT -> SERVER: 
+CLIENT -> SERVER: <!DOCTYPE html>
+CLIENT -> SERVER: <html lang="nl">
+CLIENT -> SERVER: <head>
+CLIENT -> SERVER:   <meta charset="UTF-8">
+CLIENT -> SERVER:   <meta name="viewport" content="width=device-width,initial-scale=1">
+CLIENT -> SERVER:   <title>Wachtwoord opnieuw instellen</title>
+CLIENT -> SERVER:   <style>
+CLIENT -> SERVER:     body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:#f5f5f7; }
+CLIENT -> SERVER:     .email-wrapper { width:100%; background:#f5f5f7; padding:20px 0; }
+CLIENT -> SERVER:     .email-content { max-width:600px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; }
+CLIENT -> SERVER:     .email-header { padding:20px 30px; background:#1f2937; color:#fff; }
+CLIENT -> SERVER:     .email-body { padding:30px; color:#1f2937; }
+CLIENT -> SERVER:     .button { display:inline-block; padding:12px 20px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; }
+CLIENT -> SERVER:     .footer { padding:20px 30px; font-size:12px; color:#777; }
+CLIENT -> SERVER:     .preheader { display:none; visibility:hidden; opacity:0; height:0; width:0; }
+CLIENT -> SERVER:   </style>
+CLIENT -> SERVER: </head>
+CLIENT -> SERVER: <body>
+CLIENT -> SERVER:   <span class="preheader">Je ontvangt dit bericht omdat je een wachtwoordreset hebt aangevraagd.</span>
+CLIENT -> SERVER:   <div class="email-wrapper">
+CLIENT -> SERVER:     <div class="email-content">
+CLIENT -> SERVER:       <div class="email-header">
+CLIENT -> SERVER:         <img src="https://fundamental.test/molwebsites-brand.svg" alt="Logo" style="max-height:36px;" />
+CLIENT -> SERVER:         <h1 style="margin:16px 0 0; font-size:18px;">Wachtwoord opnieuw instellen</h1>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="email-body">
+CLIENT -> SERVER:         <p>Hallo admin,<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Er is een verzoek gedaan om het wachtwoord van uw account opnieuw in te stellen.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Klik op de volgende link om uw wachtwoord te wijzigen (1 uur geldig):<br />
+CLIENT -> SERVER: https://fundamental.test/wachtwoord-vergeten?selector=be1d9ca8c2069cb7d6&amp;token=ab8fd261abbdaf8e6a825e5e8837a851c566172c83cf92419339ded8d9f72b15<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.<br />
+CLIENT -> SERVER: <br />
+CLIENT -> SERVER: Groeten,<br />
+CLIENT -> SERVER: Website<br />
+CLIENT -> SERVER: </p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:       <div class="footer">
+CLIENT -> SERVER:         <p style="margin:0;font-size:12px;color:#888;">&copy; 2026 Fundamenteel. Alle rechten voorbehouden.</p>
+CLIENT -> SERVER:       </div>
+CLIENT -> SERVER:     </div>
+CLIENT -> SERVER:   </div>
+CLIENT -> SERVER: </body>
+CLIENT -> SERVER: </html>
+CLIENT -> SERVER: 
+CLIENT -> SERVER: 
+CLIENT -> SERVER: --b1=_4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ--
+CLIENT -> SERVER: 
+CLIENT -> SERVER: .
+SERVER -> CLIENT: 250 2.0.0 OK <4yY4ay41s0nnwrbcD9GJIIXyyDkQkkXTE4AzWQQ@fundamental.test> [Hostname=DB5P192MB2241.EURP192.PROD.OUTLOOK.COM]
+CLIENT -> SERVER: QUIT
+SERVER -> CLIENT: 221 2.0.0 Service closing transmission channel
